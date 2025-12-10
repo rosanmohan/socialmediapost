@@ -1,0 +1,45 @@
+# Core dependencies
+requests==2.31.0
+httpx==0.25.2
+python-dotenv==1.0.0
+schedule==1.2.0
+
+# Database
+sqlalchemy==2.0.23
+
+# LLM & AI
+openai==1.6.1
+anthropic==0.18.1
+
+# Media generation
+moviepy==1.0.3  # Version 1.0.3 required for editor module compatibility
+Pillow>=10.0.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# Text-to-Speech
+gTTS==2.5.1
+pyttsx3==2.90
+
+# News APIs
+feedparser==6.0.11
+beautifulsoup4==4.12.3
+
+# Social Media APIs
+google-api-python-client==2.110.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.0
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2024.1
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.23.0
+
+# Logging & Monitoring
+loguru==0.7.2
+
+# Optional: For downloading royalty-free audio (for bulletin videos)
+# yt-dlp>=2023.12.30  # For YouTube Audio Library access
+# scipy>=1.11.0  # For generating background music (optional)
+
