@@ -55,41 +55,66 @@ class RoyaltyFreeAudio:
             import numpy as np
             from moviepy.audio.AudioClip import AudioArrayClip
             
-            # Different music styles for variety
+            # Expanded music styles for more variety
             styles = [
-                {"name": "ambient", "frequencies": [220.0, 261.63, 329.63], "modulation": 0.1},
-                {"name": "upbeat", "frequencies": [261.63, 329.63, 392.00, 523.25], "modulation": 0.2},
-                {"name": "calm", "frequencies": [196.00, 246.94, 293.66], "modulation": 0.05},
-                {"name": "energetic", "frequencies": [329.63, 392.00, 493.88, 659.25], "modulation": 0.3},
-                {"name": "mysterious", "frequencies": [174.61, 207.65, 246.94], "modulation": 0.15},
-                {"name": "bright", "frequencies": [261.63, 329.63, 392.00, 523.25, 659.25], "modulation": 0.25},
+                {"name": "ambient", "base_freq": 220.0, "scale": [1, 5/4, 3/2, 2], "tempo": 0.5},
+                {"name": "upbeat", "base_freq": 261.63, "scale": [1, 9/8, 5/4, 3/2, 5/3, 2], "tempo": 4.0},
+                {"name": "calm", "base_freq": 196.00, "scale": [1, 6/5, 3/2], "tempo": 0.2},
+                {"name": "energetic", "base_freq": 329.63, "scale": [1, 4/3, 3/2, 15/8, 2], "tempo": 6.0},
+                {"name": "mysterious", "base_freq": 174.61, "scale": [1, 6/5, 3/2, 9/5], "tempo": 1.0},
+                {"name": "techno", "base_freq": 146.83, "scale": [1, 3/2, 2], "tempo": 8.0},
+                {"name": "ethereal", "base_freq": 392.00, "scale": [1, 5/4, 3/2, 15/8], "tempo": 0.3},
             ]
             
-            # Pick a random style (ensures variety)
+            # Pick a random style
             style = random.choice(styles)
             logger.info(f"Generating {style['name']} style background music")
             
             sample_rate = 44100
             t = np.linspace(0, duration, int(sample_rate * duration))
-            
             audio_data = np.zeros(len(t))
             
-            # Generate music with selected style
-            for i, freq in enumerate(style['frequencies']):
-                amplitude = 0.12 / (i + 1)  # Decreasing amplitude
-                
-                # Add slight pitch variation for more interest
-                pitch_variation = random.uniform(0.98, 1.02)
-                wave = amplitude * np.sin(2 * np.pi * freq * pitch_variation * t)
-                
-                # Add modulation for interest
-                modulation_freq = random.uniform(0.1, 0.5)  # Random modulation
-                wave *= (1 + style['modulation'] * np.sin(2 * np.pi * modulation_freq * t))
-                
-                audio_data += wave
+            # Create a rich layered sound
+            base_freq = style["base_freq"]
             
+            # Layer 1: Bass/Pad
+            for ratio in style["scale"]:
+                freq = base_freq * ratio
+                # Add slow modulation
+                mod = 1 + 0.05 * np.sin(2 * np.pi * 0.1 * t)
+                wave = 0.1 * np.sin(2 * np.pi * freq * t * mod)
+                audio_data += wave
+
+            # Layer 2: Rhythmic Element
+            tempo = style["tempo"]
+            beat = np.sin(2 * np.pi * tempo * t) ** 4  # Sharp pulses
+            beat_freq = base_freq * 2
+            beat_wave = 0.05 * beat * np.sin(2 * np.pi * beat_freq * t)
+            audio_data += beat_wave
+            
+            # Layer 3: Random Arpeggios
+            # Divide timeline into segments
+            segment_len = int(sample_rate * 0.5) # 0.5 seconds
+            num_segments = len(t) // segment_len
+            
+            for i in range(num_segments):
+                start = i * segment_len
+                end = start + segment_len
+                if end > len(t): break
+                
+                # Pick random note from scale
+                ratio = random.choice(style["scale"])
+                note_freq = base_freq * 4 * ratio # Higher pitch
+                
+                # Envelope for note
+                local_t = np.linspace(0, 0.5, segment_len)
+                envelope = np.exp(-5 * local_t) # Decay
+                
+                note_wave = 0.05 * envelope * np.sin(2 * np.pi * note_freq * local_t)
+                audio_data[start:end] += note_wave
+
             # Normalize
-            audio_data = audio_data / (np.max(np.abs(audio_data)) + 0.001) * 0.28  # 28% volume
+            audio_data = audio_data / (np.max(np.abs(audio_data)) + 0.001) * 0.3
             
             # Convert to stereo
             audio_array = np.array([audio_data, audio_data]).T
@@ -97,15 +122,10 @@ class RoyaltyFreeAudio:
             # Create audio clip
             audio_clip = AudioArrayClip(audio_array, fps=sample_rate)
             
-            # Save with unique name based on style and random number
+            # Save
+            import time
             random_id = random.randint(1000, 9999)
             output_path = self.audio_cache_dir / f"music_{style['name']}_{random_id}_{int(duration)}s.mp3"
-            
-            # Check if we already used this file (avoid immediate repeats)
-            if output_path.exists() and output_path == self.last_used_file:
-                # Generate new random ID
-                random_id = random.randint(1000, 9999)
-                output_path = self.audio_cache_dir / f"music_{style['name']}_{random_id}_{int(duration)}s.mp3"
             
             audio_clip.write_audiofile(
                 str(output_path),
@@ -116,12 +136,12 @@ class RoyaltyFreeAudio:
             )
             audio_clip.close()
             
-            logger.info(f"Generated {style['name']} background music: {output_path}")
             return str(output_path)
             
         except Exception as e:
-            logger.debug(f"Varied music generation error: {e}")
-            return None
+            logger.warning(f"Varied music generation error: {e}")
+            # Fallback to simple tone
+            return self._generate_simple_tone(duration)
     
     def _get_random_audio_from_folder(self, duration: float) -> Optional[str]:
         """Get random audio file from assets/audio folder (like background videos)"""

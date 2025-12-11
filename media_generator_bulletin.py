@@ -136,49 +136,64 @@ class BulletinMediaGenerator:
             return self._create_gradient_background(duration)
     
     def _create_gradient_background(self, duration: float) -> VideoFileClip:
-        """Create animated gradient background"""
+        """Create animated gradient background with random colors"""
         try:
-            colors = [
-                (25, 25, 112),    # Midnight blue
-                (72, 61, 139),    # Dark slate blue  
-                (123, 104, 238),  # Medium slate blue
-            ]
+            # Generate random pleasant colors
+            def random_color():
+                return (random.randint(20, 100), random.randint(20, 100), random.randint(50, 150))
             
-            img = Image.new('RGB', (self.width, self.height), colors[0])
+            c1 = random_color()
+            c2 = random_color()
+            c3 = random_color()
+
+            # Create base image
+            img = Image.new('RGB', (self.width, self.height), c1)
             draw = ImageDraw.Draw(img)
             
-            # Create vertical gradient
-            for y in range(self.height):
-                progress = y / self.height
-                color_idx = int(progress * (len(colors) - 1))
-                next_idx = min(color_idx + 1, len(colors) - 1)
-                blend = (progress * (len(colors) - 1)) - color_idx
-                
-                color1 = colors[color_idx]
-                color2 = colors[next_idx]
-                
-                r = int(color1[0] * (1 - blend) + color2[0] * blend)
-                g = int(color1[1] * (1 - blend) + color2[1] * blend)
-                b = int(color1[2] * (1 - blend) + color2[2] * blend)
-                
-                draw.rectangle([(0, y), (self.width, y+1)], fill=(r, g, b))
+            logger.info(f"Creating gradient background with colors: {c1}, {c2}, {c3}")
             
+            # Create complex gradient
+            for y in range(self.height):
+                p = y / self.height
+                if p < 0.5:
+                    # Blend c1 -> c2
+                    ratio = p * 2
+                    r = int(c1[0] * (1-ratio) + c2[0] * ratio)
+                    g = int(c1[1] * (1-ratio) + c2[1] * ratio)
+                    b = int(c1[2] * (1-ratio) + c2[2] * ratio)
+                else:
+                    # Blend c2 -> c3
+                    ratio = (p - 0.5) * 2
+                    r = int(c2[0] * (1-ratio) + c3[0] * ratio)
+                    g = int(c2[1] * (1-ratio) + c3[1] * ratio)
+                    b = int(c2[2] * (1-ratio) + c3[2] * ratio)
+                
+                draw.line([(0, y), (self.width, y)], fill=(r, g, b))
+                
             temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
             img.save(temp_file.name)
             temp_file.close()
             
             clip = ImageClip(temp_file.name, duration=duration)
             
-            # Add subtle zoom effect
-            def zoom(t):
-                return 1 + 0.15 * t / duration
+            # Add slow movement/zoom
+            # Randomly choose between zoom in, zoom out, or pan
+            move_type = random.choice(['zoom_in', 'zoom_out', 'pan'])
             
-            clip = clip.resize(zoom)
+            if move_type == 'zoom_in':
+                clip = clip.resize(lambda t: 1 + 0.1 * t / duration)
+            elif move_type == 'zoom_out':
+                clip = clip.resize(lambda t: 1.1 - 0.1 * t / duration)
+            else: # Pan (resize slightly larger then scroll)
+                clip = clip.resize(1.1)
+                clip = clip.set_position(lambda t: ('center', -10 * t))
+            
             return clip
             
         except Exception as e:
             logger.warning(f"Error creating gradient: {e}, using simple background")
-            bg_color = (30, 30, 50)
+            # Fallback random dark color
+            bg_color = (random.randint(10, 50), random.randint(10, 50), random.randint(30, 80))
             return ColorClip(size=(self.width, self.height), color=bg_color, duration=duration)
     
     def _add_bulletin_text(self, background: VideoFileClip, news_items: List[Dict], duration: float) -> CompositeVideoClip:
