@@ -36,12 +36,6 @@ logs/*
 Thumbs.db
 
 # Temporary files
-# Large Media
-assets/audio/*
-assets/backgrounds/*
-assets/**/*.mp4
-assets/**/*.mp3
-assets/**/*.wav
 *.temp
 
 # Secrets
