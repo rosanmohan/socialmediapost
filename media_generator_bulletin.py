@@ -294,6 +294,16 @@ class BulletinMediaGenerator:
             # Leave margins: top 100px, bottom 100px, so 1720px available
             # 5 items with spacing: each item gets ~344px height
             
+            spacing = 20
+            
+            for idx, news in enumerate(news_items):
+                news_number = idx + 1
+                title = news.get("title", "Breaking News")
+                
+                # Calculate position for this item
+                y_start = start_y + idx * (item_height + spacing)
+                y_center = y_start + item_height // 2
+                
                 # Draw glassmorphism card background for readability
                 card_height = item_height - 25
                 card_margin = 40
