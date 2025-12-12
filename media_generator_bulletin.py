@@ -259,106 +259,118 @@ class BulletinMediaGenerator:
             # Load fonts - smaller size to fit all 5 items
             try:
                 if font_path and os.path.exists(font_path):
-                    font_title = ImageFont.truetype(font_path, 50)  # Smaller for fitting
-                    font_number = ImageFont.truetype(font_path, 40)
+                    font_title = ImageFont.truetype(font_path, 60)  # Larger font (was 50)
+                    font_number = ImageFont.truetype(font_path, 50)
+                    font_header = ImageFont.truetype(font_path, 80)
                 else:
                     # Try system fonts
                     try:
-                        font_title = ImageFont.truetype("arial.ttf", 50)
-                        font_number = ImageFont.truetype("arial.ttf", 40)
+                        font_title = ImageFont.truetype("arial.ttf", 60)
+                        font_number = ImageFont.truetype("arial.ttf", 50)
+                        font_header = ImageFont.truetype("arial.ttf", 80)
                     except:
                         font_title = ImageFont.load_default()
                         font_number = ImageFont.load_default()
+                        font_header = ImageFont.load_default()
             except:
                 font_title = ImageFont.load_default()
                 font_number = ImageFont.load_default()
+                font_header = ImageFont.load_default()
             
-            # Calculate positions for all 5 items
+            # --- Draw Header ---
+            header_text = "TOP 5 BREAKING NEWS"
+            bbox = draw.textbbox((0, 0), header_text, font=font_header)
+            header_w = bbox[2] - bbox[0]
+            
+            # Draw header background
+            draw.rectangle([0, 0, self.width, 140], fill=(200, 0, 0, 255)) # Red banner
+            draw.text(((self.width - header_w)/2, 30), header_text, fill="white", font=font_header, stroke_width=3, stroke_fill="black")
+
+            # --- Calculate Layout ---
+            start_y = 180  # Top margin (below header)
+            item_height = (self.height - 300) // 5  # Available height / 5 items
+            
             # Distribute evenly across the height (9:16 = 1080x1920)
             # Leave margins: top 100px, bottom 100px, so 1720px available
             # 5 items with spacing: each item gets ~344px height
             
-            start_y = 150  # Top margin
-            item_height = (self.height - 300) // 5  # Available height / 5 items
-            spacing = 20  # Space between items
-            
-            for idx, news in enumerate(news_items):
-                news_number = idx + 1
-                title = news.get("title", "Breaking News")
+                # Draw glassmorphism card background for readability
+                card_height = item_height - 25
+                card_margin = 40
+                card_y = y_center - card_height // 2
                 
-                # NO TRUNCATION - show full meaningful headline
-                # But wrap it to fit in the available space
-                
-                # Calculate position for this item
-                y_start = start_y + idx * (item_height + spacing)
-                y_center = y_start + item_height // 2
-                
-                # Draw news number badge (left side)
-                number_text = f"{news_number}"
-                bbox = draw.textbbox((0, 0), number_text, font=font_number)
-                number_width = bbox[2] - bbox[0]
-                number_height = bbox[3] - bbox[1]
-                
-                # Smaller circle for compact layout
-                circle_size = 50
-                circle_x = 60
-                circle_y = y_center
-                
-                # Draw circle
-                draw.ellipse(
-                    [circle_x - circle_size // 2, circle_y - circle_size // 2,
-                     circle_x + circle_size // 2, circle_y + circle_size // 2],
-                    fill=(255, 0, 0, 240)  # Red circle
+                # Semi-transparent dark background for text readability
+                draw.rectangle(
+                    [card_margin, card_y, self.width - card_margin, card_y + card_height],
+                    fill=(0, 0, 0, 160),
+                    outline=(255, 255, 255, 30),
+                    width=2
                 )
                 
-                # Draw number
-                number_x = circle_x - number_width // 2
-                number_y = circle_y - number_height // 2
-                draw.text((number_x, number_y), number_text, fill=(255, 255, 255, 255), font=font_number)
+                # Draw Colorful Number Badge (Left)
+                badge_size = 80
+                badge_x = card_margin + 50
+                badge_y = y_center
                 
-                # Draw news title (right side of number)
-                text_x = 130  # Start after number circle
-                text_y = y_start + 10  # Top of text area
-                max_text_width = self.width - text_x - 40  # Leave right margin
-                max_text_height = item_height - 20
+                # Vibrant colors for numbers for eye-catching look
+                badge_colors = [(255, 59, 48), (255, 149, 0), (255, 204, 0), (52, 199, 89), (0, 122, 255)]
+                badge_color = badge_colors[idx % len(badge_colors)]
                 
-                # Word wrap the FULL title to fit in available space
+                draw.ellipse(
+                    [badge_x - badge_size//2, badge_y - badge_size//2, 
+                     badge_x + badge_size//2, badge_y + badge_size//2],
+                    fill=badge_color
+                )
+                
+                # Draw number centered in badge
+                # Use thicker stroke for bold look
+                number_text = str(news_number)
+                bbox = draw.textbbox((0, 0), number_text, font=font_number)
+                num_w, num_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                draw.text(
+                    (badge_x - num_w/2, badge_y - num_h/2 - 5), 
+                    number_text, 
+                    fill="white", 
+                    font=font_number,
+                    stroke_width=2,
+                    stroke_fill="black"
+                )
+                
+                # Draw Title (Right)
+                text_x = badge_x + 70
+                max_text_width = self.width - text_x - card_margin - 30
+                
+                # Word wrap logic
                 words = title.split()
                 lines = []
                 current_line = []
-                current_width = 0
+                current_w = 0
                 
                 for word in words:
                     bbox = draw.textbbox((0, 0), word + " ", font=font_title)
-                    word_width = bbox[2] - bbox[0]
-                    
-                    if current_width + word_width > max_text_width and current_line:
+                    w = bbox[2] - bbox[0]
+                    if current_w + w > max_text_width:
                         lines.append(" ".join(current_line))
                         current_line = [word]
-                        current_width = word_width
+                        current_w = w
                     else:
                         current_line.append(word)
-                        current_width += word_width
+                        current_w += w
+                if current_line: lines.append(" ".join(current_line))
                 
-                if current_line:
-                    lines.append(" ".join(current_line))
+                # Center vertically based on number of lines
+                total_text_height = len(lines) * 60
+                text_start_y = y_center - total_text_height // 2
                 
-                # Limit lines to fit in available height
-                line_height = 55  # Adjusted for smaller font
-                max_lines = min(len(lines), max_text_height // line_height)
-                lines = lines[:max_lines]
-                
-                # Draw all lines
                 for i, line in enumerate(lines):
-                    if i * line_height < max_text_height:
-                        draw.text(
-                            (text_x, text_y + i * line_height),
-                            line,
-                            fill=(255, 255, 255, 255),
-                            font=font_title,
-                            stroke_width=2,
-                            stroke_fill=(0, 0, 0, 220)
-                        )
+                    draw.text(
+                        (text_x, text_start_y + i * 60),
+                        line,
+                        fill="white",
+                        font=font_title,
+                        stroke_width=2,
+                        stroke_fill="black"
+                    )
             
             # Convert to numpy array
             img_array = np.array(img)

@@ -45,6 +45,42 @@ class BulletinPipeline:
                 return result
             
             logger.info(f"Selected exactly {len(top_5_news)} unused news items for bulletin")
+
+            # Step 1.5: Rewrite headlines for impact (Viral Hooks)
+            logger.info("Step 1.5: Rewriting headlines for viral impact...")
+            try:
+                from llm_provider import get_llm
+                llm = get_llm()
+                
+                # Create a prompt for all 5 items at once to save time/tokens
+                headlines = [f"{idx+1}. {item.get('title')}" for idx, item in enumerate(top_5_news)]
+                joined_headlines = "\n".join(headlines)
+                
+                prompt = (
+                    f"Rewrite these 5 news headlines into catchy, viral video hooks (MAX 8 words each).\n"
+                    f"Make them punchy, dramatic, and clear. No hashtags. No emojis.\n"
+                    f"Current headlines:\n{joined_headlines}\n\n"
+                    f"Output ONLY the 5 rewritten headlines, numbered 1-5."
+                )
+                
+                response = llm.generate_text(prompt)
+                
+                # Parse response
+                rewritten_lines = [line.strip() for line in response.strip().split('\n') if line.strip() and line[0].isdigit()]
+                
+                if len(rewritten_lines) == 5:
+                    for i in range(5):
+                        # Extract text after number (e.g. "1. Headline" -> "Headline")
+                        clean_text = rewritten_lines[i].split('.', 1)[-1].strip()
+                        # Update the news item dict (keep original title for description)
+                        top_5_news[i]['original_title'] = top_5_news[i]['title']
+                        top_5_news[i]['title'] = clean_text
+                        logger.info(f"Rewrote: {top_5_news[i]['original_title'][:30]}... -> {clean_text}")
+                else:
+                    logger.warning(f"LLM return format issue. Got {len(rewritten_lines)} lines via LLM. Using originals.")
+                    
+            except Exception as e:
+                logger.error(f"Failed to rewrite headlines: {e}. Using originals.")
             
             # Step 2: Get royalty-free background music (MUST have audio)
             logger.info("Step 2: Getting royalty-free background music...")
