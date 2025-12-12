@@ -29,7 +29,25 @@ class RoyaltyFreeAudio:
         """
         logger.info(f"Getting royalty-free background music ({duration}s)...")
         
-        # Step 1: Try to get audio from assets/audio folder (like background videos)
+        # Step 1: Try to get audio from Google Drive (Primary source)
+        if config.DRIVE_AUDIO_FOLDER_ID:
+            logger.info("Checking Google Drive for audio...")
+            try:
+                from google_drive_assets import GoogleDriveAssets
+                drive = GoogleDriveAssets()
+                drive_audio = drive.download_random_file(
+                    config.DRIVE_AUDIO_FOLDER_ID, 
+                    str(config.AUDIO_DIR),
+                    ['.mp3', '.wav', '.m4a']
+                )
+                if drive_audio:
+                    self.last_used_file = drive_audio
+                    logger.info(f"Using audio from Google Drive: {os.path.basename(drive_audio)}")
+                    return drive_audio
+            except Exception as e:
+                logger.error(f"Failed to get audio from Drive: {e}")
+
+        # Step 2: Try to get audio from assets/audio folder (Fallback)
         audio_path = self._get_random_audio_from_folder(duration)
         
         if audio_path and os.path.exists(audio_path):
@@ -37,7 +55,9 @@ class RoyaltyFreeAudio:
             logger.info(f"Using audio from assets folder: {os.path.basename(audio_path)}")
             return audio_path
         
-        # Step 2: Fallback to programmatically generated music
+        # Step 3: Fallback to programmatically generated music
+
+        # Step 3: Fallback to programmatically generated music
         logger.info("No audio files in assets folder, generating music programmatically")
         audio_path = self._generate_varied_music(duration)
         

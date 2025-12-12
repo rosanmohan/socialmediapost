@@ -90,7 +90,30 @@ class BulletinMediaGenerator:
             return None
     
     def _create_background(self, duration: float) -> VideoFileClip:
-        """Create or get random background video"""
+        """Create or get random background video (Drive > Local > Gradient)"""
+        
+        # Step 1: Try Google Drive (Primary)
+        if config.DRIVE_BACKGROUNDS_FOLDER_ID:
+            try:
+                # Check if we already have files downloaded recently to avoid spamming API? 
+                # For now, let's try to get a new one to ensure variety
+                logger.info("Checking Google Drive for background video...")
+                from google_drive_assets import GoogleDriveAssets
+                drive = GoogleDriveAssets()
+                drive_bg = drive.download_random_file(
+                    config.DRIVE_BACKGROUNDS_FOLDER_ID,
+                    str(config.BACKGROUNDS_DIR),
+                    ['.mp4', '.mov']
+                )
+                
+                if drive_bg:
+                    logger.info(f"Using background from Google Drive: {os.path.basename(drive_bg)}")
+                    bg_clip = VideoFileClip(drive_bg)
+                    return self._process_background_clip(bg_clip, duration)
+            except Exception as e:
+                logger.error(f"Failed to get background from Drive: {e}")
+
+        # Step 2: Local Backgrounds
         bg_videos = list(config.BACKGROUNDS_DIR.glob("*.mp4"))
         
         if bg_videos:
@@ -98,42 +121,45 @@ class BulletinMediaGenerator:
             bg_path = random.choice(bg_videos)
             logger.info(f"Using random background video: {bg_path.name}")
             bg_clip = VideoFileClip(str(bg_path))
+            return self._process_background_clip(bg_clip, duration)
             
-            # Resize to 9:16
-            bg_clip = bg_clip.resize((self.width, self.height))
-            
-            # Adjust duration to exactly 20 seconds
-            if bg_clip.duration < duration:
-                # Slow down or loop
-                speed_factor = bg_clip.duration / duration
-                if speed_factor < 0.5:  # Very short video, use looping
+        # Step 3: Gradient Fallback
+        logger.info("No background videos found, creating gradient background")
+        return self._create_gradient_background(duration)
+
+    def _process_background_clip(self, bg_clip: VideoFileClip, duration: float) -> VideoFileClip:
+        """Process a raw video clip to fit the target dimensions and duration"""
+        # Resize to 9:16
+        bg_clip = bg_clip.resize((self.width, self.height))
+        
+        # Adjust duration to exactly 20 seconds
+        if bg_clip.duration < duration:
+            # Slow down or loop
+            speed_factor = bg_clip.duration / duration
+            if speed_factor < 0.5:  # Very short video, use looping
+                loops_needed = int(duration / bg_clip.duration) + 1
+                try:
+                    from moviepy.video.fx.all import speedx
+                    slowed_clip = bg_clip.fx(speedx, 0.7)  # Slight slowdown
+                    looped_clips = [slowed_clip] * loops_needed
+                    bg_clip = concatenate_videoclips(looped_clips)
+                except:
+                    looped_clips = [bg_clip] * loops_needed
+                    bg_clip = concatenate_videoclips(looped_clips)
+            else:
+                # Slow down smoothly
+                try:
+                    from moviepy.video.fx.all import speedx
+                    bg_clip = bg_clip.fx(speedx, speed_factor)
+                except:
+                    # Fallback: loop
                     loops_needed = int(duration / bg_clip.duration) + 1
-                    try:
-                        from moviepy.video.fx.all import speedx
-                        slowed_clip = bg_clip.fx(speedx, 0.7)  # Slight slowdown
-                        looped_clips = [slowed_clip] * loops_needed
-                        bg_clip = concatenate_videoclips(looped_clips)
-                    except:
-                        looped_clips = [bg_clip] * loops_needed
-                        bg_clip = concatenate_videoclips(looped_clips)
-                else:
-                    # Slow down smoothly
-                    try:
-                        from moviepy.video.fx.all import speedx
-                        bg_clip = bg_clip.fx(speedx, speed_factor)
-                    except:
-                        # Fallback: loop
-                        loops_needed = int(duration / bg_clip.duration) + 1
-                        looped_clips = [bg_clip] * loops_needed
-                        bg_clip = concatenate_videoclips(looped_clips)
-            
-            # Trim to exact duration
-            bg_clip = bg_clip.subclip(0, duration)
-            return bg_clip
-        else:
-            # Create gradient background
-            logger.info("No background videos found, creating gradient background")
-            return self._create_gradient_background(duration)
+                    looped_clips = [bg_clip] * loops_needed
+                    bg_clip = concatenate_videoclips(looped_clips)
+        
+        # Trim to exact duration
+        bg_clip = bg_clip.subclip(0, duration)
+        return bg_clip
     
     def _create_gradient_background(self, duration: float) -> VideoFileClip:
         """Create animated gradient background with random colors"""

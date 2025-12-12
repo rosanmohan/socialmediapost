@@ -93,3 +93,9 @@ TOP_N_NEWS_TO_CONSIDER = 3
 MIN_NEWS_AGE_HOURS = 0
 MAX_NEWS_AGE_HOURS = 12
 
+MAX_NEWS_AGE_HOURS = 12
+
+# Google Drive Assets (Optional - for cloud storage of large files)
+# Extract ID from URL: drive.google.com/drive/folders/YOUR_ID_HERE
+DRIVE_AUDIO_FOLDER_ID = os.getenv("DRIVE_AUDIO_FOLDER_ID", "")
+DRIVE_BACKGROUNDS_FOLDER_ID = os.getenv("DRIVE_BACKGROUNDS_FOLDER_ID", "")

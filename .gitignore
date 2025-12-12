@@ -38,8 +38,16 @@ Thumbs.db
 # Temporary files
 *.temp
 
+# Large Media (Use Google Drive instead)
+assets/audio/*
+assets/backgrounds/*
+assets/**/*.mp4
+assets/**/*.mp3
+assets/**/*.wav
+
+# Exceptions (Always track these)
+!assets/fonts/
+!assets/fonts/*
+
 # Secrets
 client_secret.json
-
-
-
