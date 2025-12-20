@@ -8,10 +8,11 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from loguru import logger
 import config
-from moviepy.editor import (
+from moviepy import (
     VideoFileClip, ImageClip, CompositeVideoClip,
     AudioFileClip, concatenate_videoclips, ColorClip
 )
+from moviepy.video.fx import Resize, MultiplySpeed, FadeIn
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import tempfile
@@ -48,10 +49,10 @@ class BulletinMediaGenerator:
                 # Loop audio if shorter
                 loops_needed = int(self.target_duration / audio_clip.duration) + 1
                 audio_clips = [audio_clip] * loops_needed
-                audio_clip = concatenate_videoclips(audio_clips).subclip(0, self.target_duration)
+                audio_clip = concatenate_videoclips(audio_clips).subclipped(0, self.target_duration)
                 logger.info(f"Looped audio to match {self.target_duration}s duration")
             else:
-                audio_clip = audio_clip.subclip(0, self.target_duration)
+                audio_clip = audio_clip.subclipped(0, self.target_duration)
                 logger.info(f"Trimmed audio to {self.target_duration}s")
             
             # Step 2: Create background (20 seconds)
@@ -61,7 +62,7 @@ class BulletinMediaGenerator:
             video_with_text = self._add_bulletin_text(background, news_items, self.target_duration)
             
             # Step 4: Add audio (MUST have audio)
-            final_video = video_with_text.set_audio(audio_clip)
+            final_video = video_with_text.with_audio(audio_clip)
             
             # Step 5: Export video
             import time
@@ -130,7 +131,7 @@ class BulletinMediaGenerator:
     def _process_background_clip(self, bg_clip: VideoFileClip, duration: float) -> VideoFileClip:
         """Process a raw video clip to fit the target dimensions and duration"""
         # Resize to 9:16
-        bg_clip = bg_clip.resize((self.width, self.height))
+        bg_clip = bg_clip.with_effects([Resize(new_size=(self.width, self.height))])
         
         # Adjust duration to exactly 20 seconds
         if bg_clip.duration < duration:
@@ -139,8 +140,8 @@ class BulletinMediaGenerator:
             if speed_factor < 0.5:  # Very short video, use looping
                 loops_needed = int(duration / bg_clip.duration) + 1
                 try:
-                    from moviepy.video.fx.all import speedx
-                    slowed_clip = bg_clip.fx(speedx, 0.7)  # Slight slowdown
+                    from moviepy.video.fx import MultiplySpeed
+                    slowed_clip = bg_clip.with_effects([MultiplySpeed(0.7)])  # Slight slowdown
                     looped_clips = [slowed_clip] * loops_needed
                     bg_clip = concatenate_videoclips(looped_clips)
                 except:
@@ -149,8 +150,8 @@ class BulletinMediaGenerator:
             else:
                 # Slow down smoothly
                 try:
-                    from moviepy.video.fx.all import speedx
-                    bg_clip = bg_clip.fx(speedx, speed_factor)
+                    from moviepy.video.fx import MultiplySpeed
+                    bg_clip = bg_clip.with_effects([MultiplySpeed(speed_factor)])
                 except:
                     # Fallback: loop
                     loops_needed = int(duration / bg_clip.duration) + 1
@@ -158,7 +159,7 @@ class BulletinMediaGenerator:
                     bg_clip = concatenate_videoclips(looped_clips)
         
         # Trim to exact duration
-        bg_clip = bg_clip.subclip(0, duration)
+        bg_clip = bg_clip.subclipped(0, duration)
         return bg_clip
     
     def _create_gradient_background(self, duration: float) -> VideoFileClip:
@@ -207,12 +208,12 @@ class BulletinMediaGenerator:
             move_type = random.choice(['zoom_in', 'zoom_out', 'pan'])
             
             if move_type == 'zoom_in':
-                clip = clip.resize(lambda t: 1 + 0.1 * t / duration)
+                clip = clip.with_effects([Resize(new_size=lambda t: 1 + 0.1 * t / duration)])
             elif move_type == 'zoom_out':
-                clip = clip.resize(lambda t: 1.1 - 0.1 * t / duration)
+                clip = clip.with_effects([Resize(new_size=lambda t: 1.1 - 0.1 * t / duration)])
             else: # Pan (resize slightly larger then scroll)
-                clip = clip.resize(1.1)
-                clip = clip.set_position(lambda t: ('center', -10 * t))
+                clip = clip.with_effects([Resize(new_size=1.1)])
+                clip = clip.with_position(lambda t: ('center', -10 * t))
             
             return clip
             
@@ -386,10 +387,10 @@ class BulletinMediaGenerator:
             img_array = np.array(img)
             
             # Create clip for entire duration (all items shown for full 20 seconds)
-            clip = ImageClip(img_array).set_duration(duration).set_position(('center', 'center'))
+            clip = ImageClip(img_array).with_duration(duration).with_position(('center', 'center'))
             
             # Add subtle fade in at start
-            clip = clip.fadein(0.5)
+            clip = clip.with_effects([FadeIn(duration=0.5)])
             
             return clip
             

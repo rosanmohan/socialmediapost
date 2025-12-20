@@ -73,7 +73,7 @@ class RoyaltyFreeAudio:
         """Generate varied background music programmatically - different each time"""
         try:
             import numpy as np
-            from moviepy.audio.AudioClip import AudioArrayClip
+            from moviepy import AudioArrayClip
             
             # Expanded music styles for more variety
             styles = [
@@ -149,7 +149,6 @@ class RoyaltyFreeAudio:
             
             audio_clip.write_audiofile(
                 str(output_path),
-                verbose=False,
                 logger=None,
                 codec='libmp3lame',
                 bitrate='128k'
@@ -192,20 +191,20 @@ class RoyaltyFreeAudio:
             logger.info(f"Selected random audio: {selected_audio.name} (from {len(audio_files)} available files)")
             
             # Load and adjust duration if needed
-            from moviepy.editor import AudioFileClip
+            from moviepy import AudioFileClip
             
             audio_clip = AudioFileClip(str(selected_audio))
             
             # If audio is shorter than needed, loop it
             if audio_clip.duration < duration:
                 loops_needed = int(duration / audio_clip.duration) + 1
-                from moviepy.editor import concatenate_audioclips
+                from moviepy import concatenate_audioclips
                 audio_clips = [audio_clip] * loops_needed
-                audio_clip = concatenate_audioclips(audio_clips).subclip(0, duration)
+                audio_clip = concatenate_audioclips(audio_clips).subclipped(0, duration)
                 logger.info(f"Looped audio to match {duration}s duration")
             else:
                 # Trim to exact duration
-                audio_clip = audio_clip.subclip(0, duration)
+                audio_clip = audio_clip.subclipped(0, duration)
                 logger.info(f"Trimmed audio to {duration}s")
             
             # Save to cache with unique name to avoid conflicts
@@ -213,7 +212,6 @@ class RoyaltyFreeAudio:
             cached_path = self.audio_cache_dir / f"cached_{int(time.time())}_{selected_audio.stem}.mp3"
             audio_clip.write_audiofile(
                 str(cached_path),
-                verbose=False,
                 logger=None,
                 codec='libmp3lame',
                 bitrate='192k'
@@ -276,7 +274,7 @@ class RoyaltyFreeAudio:
         """Generate a simple background tone with variety (always works - guaranteed audio)"""
         try:
             import numpy as np
-            from moviepy.audio.AudioClip import AudioArrayClip
+            from moviepy import AudioArrayClip
             
             # Different chord progressions for variety
             chord_progressions = [
@@ -325,7 +323,6 @@ class RoyaltyFreeAudio:
             
             audio_clip.write_audiofile(
                 str(output_path), 
-                verbose=False, 
                 logger=None,
                 codec='libmp3lame',
                 bitrate='128k'
