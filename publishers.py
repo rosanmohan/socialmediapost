@@ -66,13 +66,17 @@ class InstagramPublisher:
             # Step 2: Upload video binary
             with open(video_path, 'rb') as video_file:
                 video_data = video_file.read()
-                
+            
+            file_size = len(video_data)
             headers = {
                 "Authorization": f"OAuth {self.access_token}",
                 "Offset": "0",
-                "File-Size": str(len(video_data))
+                "File-Size": str(file_size),
+                "Content-Length": str(file_size),
+                "Content-Type": "application/octet-stream"
             }
             
+            logger.info(f"Uploading {file_size} bytes to Instagram...")
             upload_response = requests.post(upload_url, data=video_data, headers=headers, timeout=600)
             
             if upload_response.status_code != 200:
