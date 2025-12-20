@@ -12,7 +12,7 @@ import pytz
 from datetime import datetime
 
 # Define the schedule times (24-hour format)
-SCHEDULE_TIMES = ["06:00", "10:00", "14:00", "16:00", "20:00"]
+SCHEDULE_TIMES = ["06:00", "12:00", "16:00"]
 
 def run_job():
     """Execute main_1.py using subprocess to ensure a clean state"""
