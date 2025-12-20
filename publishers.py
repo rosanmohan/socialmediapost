@@ -106,8 +106,16 @@ class InstagramPublisher:
                     logger.info(f"Instagram post published successfully: {post_id}")
                     break
                 
-                error_msg = publish_response.json().get("error", {}).get("message", "")
-                if "Media processing has not been completed" not in error_msg:
+                error_data = publish_response.json().get("error", {})
+                error_msg = error_data.get("message", "")
+                error_code = error_data.get("code")
+                
+                # Treat "Media processing has not been completed" and "Media ID is not available" (9007) as "wait" states
+                is_processing = "Media processing has not been completed" in error_msg or \
+                                "Media ID is not available" in error_msg or \
+                                error_code == 9007
+                
+                if not is_processing:
                     logger.error(f"Instagram publish failed: {publish_response.text}")
                     # Clean up Cloudinary before returning error
                     cloudinary.uploader.destroy(cloudinary_public_id, resource_type="video")
