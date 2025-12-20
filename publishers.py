@@ -8,6 +8,7 @@ from typing import Dict, Optional
 from loguru import logger
 import config
 from pathlib import Path
+import requests
 
 class InstagramPublisher:
     """Publish to Instagram Reels"""
