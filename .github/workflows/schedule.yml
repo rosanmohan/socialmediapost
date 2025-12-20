@@ -62,8 +62,8 @@ jobs:
         
         # Publishing Toggles (Disable until credentials are configured)
         ENABLE_PUBLISH_YOUTUBE: "false"
-        ENABLE_PUBLISH_INSTAGRAM: "false"
-        ENABLE_PUBLISH_FACEBOOK: "false"
+        ENABLE_PUBLISH_INSTAGRAM: "true"
+        ENABLE_PUBLISH_FACEBOOK: "true"
         
         # Configuration
         TIMEZONE: "Asia/Kolkata"
