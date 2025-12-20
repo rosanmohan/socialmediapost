@@ -34,7 +34,7 @@ class Post(Base):
     id = Column(Integer, primary_key=True)
     news_id = Column(Integer, ForeignKey("news_items.id"))
     script = Column(Text, nullable=False)
-    caption = Column(String(500))
+    caption = Column(String(2000))  # Increased from 500 to 2000 for bulletin videos
     hashtags = Column(String(500))
     video_path = Column(String(1000))
     thumbnail_path = Column(String(1000))
