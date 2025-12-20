@@ -51,3 +51,4 @@ assets/**/*.wav
 
 # Secrets
 client_secret.json
+youtube_credentials_backup.txt

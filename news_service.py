@@ -4,7 +4,7 @@ Fetches trending news from multiple sources and ranks them by popularity
 """
 import requests
 import feedparser
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional
 from fuzzywuzzy import fuzz
 from loguru import logger
@@ -121,7 +121,7 @@ class NewsService:
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         """Parse various date formats"""
         if not date_str:
-            return datetime.utcnow()
+            return datetime.now(timezone.utc)
         
         formats = [
             "%Y-%m-%dT%H:%M:%SZ",
@@ -132,26 +132,39 @@ class NewsService:
         
         for fmt in formats:
             try:
-                return datetime.strptime(date_str, fmt)
+                dt = datetime.strptime(date_str, fmt)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
             except:
                 continue
         
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
     
     def fetch_all_news(self) -> List[Dict]:
         """Fetch news from all configured sources"""
         all_articles = []
         
-        # Fetch from APIs
-        all_articles.extend(self.fetch_from_newsapi())
-        all_articles.extend(self.fetch_from_gnews())
+        # Fetch from APIs - both global and India-specific
+        all_articles.extend(self.fetch_from_newsapi(query="trending", max_results=15))
+        all_articles.extend(self.fetch_from_newsapi(query="India", max_results=10))
+        all_articles.extend(self.fetch_from_gnews(query="trending", max_results=15))
+        all_articles.extend(self.fetch_from_gnews(query="India", max_results=10))
         
-        # Fetch from RSS feeds (popular news sources)
+        # Fetch from RSS feeds (popular news sources - International + Indian)
         rss_urls = [
+            # International
             "https://feeds.bbci.co.uk/news/rss.xml",
             "https://rss.cnn.com/rss/edition.rss",
             "https://feeds.reuters.com/reuters/topNews",
-            "https://www.theguardian.com/world/rss"
+            "https://www.theguardian.com/world/rss",
+            
+            # Indian News Sources
+            "https://www.thehindu.com/news/national/feeder/default.rss",
+            "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
+            "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml",
+            "https://www.ndtv.com/india/rss",
+            "https://indianexpress.com/section/india/feed/",
         ]
         all_articles.extend(self.fetch_from_rss(rss_urls))
         
@@ -173,7 +186,7 @@ class NewsService:
         
         # Age factor (prefer recent news)
         if article.get("published_at"):
-            age_hours = (datetime.utcnow() - article["published_at"]).total_seconds() / 3600
+            age_hours = (datetime.now(timezone.utc) - article["published_at"]).total_seconds() / 3600
             if age_hours <= config.MAX_NEWS_AGE_HOURS:
                 score += 10.0 * (1 - age_hours / config.MAX_NEWS_AGE_HOURS)
         
@@ -215,7 +228,7 @@ class NewsService:
         scored_articles.sort(key=lambda x: x["score"], reverse=True)
         
         # Filter by age
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         filtered = []
         for article in scored_articles:
             if article.get("published_at"):
@@ -264,7 +277,7 @@ class NewsService:
                     description=article.get("description", ""),
                     url=article["url"],
                     source=article.get("source", "Unknown"),
-                    published_at=article.get("published_at", datetime.utcnow()),
+                    published_at=article.get("published_at", datetime.now(timezone.utc)),
                     score=article.get("score", 0.0)
                 )
                 db.add(news_item)

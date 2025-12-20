@@ -84,7 +84,9 @@ class MediaGenerator:
         try:
             if config.TTS_PROVIDER == "gtts":
                 tts = gTTS(text=script, lang='en', slow=False)
-                audio_path = config.MEDIA_DIR / f"audio_{identifier.replace(' ', '_')[:50]}.mp3"
+                # Sanitize filename: remove question marks and other invalid chars
+                safe_identifier = "".join([c for c in identifier if c.isalnum() or c in (' ', '_', '-')]).strip().replace(' ', '_')[:50]
+                audio_path = config.MEDIA_DIR / f"audio_{safe_identifier}.mp3"
                 tts.save(str(audio_path))
                 logger.info(f"TTS audio saved: {audio_path}")
                 return str(audio_path)
@@ -92,7 +94,9 @@ class MediaGenerator:
                 # Fallback to pyttsx3
                 import pyttsx3
                 engine = pyttsx3.init()
-                audio_path = config.MEDIA_DIR / f"audio_{identifier.replace(' ', '_')[:50]}.wav"
+                # Sanitize filename: remove question marks and other invalid chars
+                safe_identifier = "".join([c for c in identifier if c.isalnum() or c in (' ', '_', '-')]).strip().replace(' ', '_')[:50]
+                audio_path = config.MEDIA_DIR / f"audio_{safe_identifier}.wav"
                 engine.save_to_file(script, str(audio_path))
                 engine.runAndWait()
                 return str(audio_path)
@@ -577,7 +581,9 @@ class MediaGenerator:
     def generate_thumbnail(self, title: str, output_path: Optional[str] = None) -> str:
         """Generate thumbnail image"""
         if not output_path:
-            output_path = config.MEDIA_DIR / f"thumbnail_{title[:30].replace(' ', '_')}.jpg"
+            # Sanitize filename
+            safe_title = "".join([c for c in title if c.isalnum() or c in (' ', '_', '-')]).strip().replace(' ', '_')[:30]
+            output_path = config.MEDIA_DIR / f"thumbnail_{safe_title}.jpg"
         
         # Create thumbnail image
         img = Image.new('RGB', (self.width, self.height), color=(30, 30, 50))

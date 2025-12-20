@@ -55,6 +55,12 @@ FACEBOOK_ACCESS_TOKEN = os.getenv("FACEBOOK_ACCESS_TOKEN", "")
 INSTAGRAM_BUSINESS_ACCOUNT_ID = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID", "")
 FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID", "")
 
+# Publishing Toggles
+# Set to 'false' to disable publishing to specific platforms (useful for testing)
+ENABLE_PUBLISH_INSTAGRAM = os.getenv("ENABLE_PUBLISH_INSTAGRAM", "true").lower() == "true"
+ENABLE_PUBLISH_FACEBOOK = os.getenv("ENABLE_PUBLISH_FACEBOOK", "true").lower() == "true"
+ENABLE_PUBLISH_YOUTUBE = os.getenv("ENABLE_PUBLISH_YOUTUBE", "true").lower() == "true"
+
 # YouTube API Configuration
 YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID", "")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET", "")

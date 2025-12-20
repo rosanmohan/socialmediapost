@@ -39,36 +39,51 @@ class InstagramPublisher:
             hashtags_str = " ".join([f"#{tag}" for tag in hashtags[:30]])  # Limit hashtags
             full_caption = f"{caption}\n\n{hashtags_str}"
             
-            # Create container
-            container_url = f"https://graph.facebook.com/v18.0/{self.instagram_account_id}/media"
+            # Instagram Graph API Resumable Upload for Reels
+            # Step 1: Initialize upload session
+            init_url = f"https://graph.facebook.com/v18.0/{self.instagram_account_id}/media"
+            init_params = {
+                "media_type": "REELS",
+                "upload_type": "resumable",
+                "caption": full_caption[:2200],
+                "access_token": self.access_token
+            }
             
-            # Upload video file
+            init_response = requests.post(init_url, params=init_params)
+            
+            if init_response.status_code != 200:
+                logger.error(f"Instagram init failed: {init_response.text}")
+                return {"status": "failed", "error": init_response.text}
+                
+            upload_url = init_response.json().get("uri")
+            container_id = init_response.json().get("id")
+            
+            if not upload_url:
+                 return {"status": "failed", "error": "No upload URL received from Instagram"}
+
+            logger.info(f"Instagram upload session started: {container_id}")
+
+            # Step 2: Upload video binary
             with open(video_path, 'rb') as video_file:
-                files = {'video_file': video_file}
-                data = {
-                    "media_type": "REELS",
-                    "caption": full_caption[:2200],  # Instagram limit
-                    "access_token": self.access_token
-                }
-                response = requests.post(container_url, files=files, data=data, timeout=300)
-            
-            if response.status_code != 200:
-                error_data = response.json() if response.text else {}
-                error_msg = error_data.get("error", {}).get("message", response.text)
-                error_code = error_data.get("error", {}).get("code", "")
+                video_data = video_file.read()
                 
-                # Check for invalid token error
-                if error_code == 190 or "Invalid OAuth access token" in error_msg:
-                    logger.warning(f"Instagram access token invalid or expired: {error_msg}")
-                    return {
-                        "status": "failed", 
-                        "error": "Invalid Instagram/Facebook access token. Please check FACEBOOK_ACCESS_TOKEN in .env file. Token may have expired or is invalid."
-                    }
-                
-                logger.warning(f"Instagram publish failed: {error_msg}")
-                return {"status": "failed", "error": error_msg}
+            headers = {
+                "Authorization": f"OAuth {self.access_token}",
+                "Offset": "0",
+                "File-Size": str(len(video_data))
+            }
             
-            container_id = response.json().get("id")
+            upload_response = requests.post(upload_url, data=video_data, headers=headers, timeout=600)
+            
+            if upload_response.status_code != 200:
+                logger.error(f"Instagram binary upload failed: {upload_response.text}")
+                return {"status": "failed", "error": upload_response.text}
+            
+            logger.info("Instagram video uploaded successfully")
+            
+            # Step 3: Publish container
+            # We already have container_id from Step 1
+
             logger.info(f"Instagram container created: {container_id}")
             
             # Step 2: Publish container
@@ -311,18 +326,30 @@ class PublisherManager:
         title = content.get("title", caption)
         
         # Publish to Instagram
-        logger.info("Publishing to Instagram...")
-        results["instagram"] = self.instagram.publish(video_path, caption, hashtags)
-        time.sleep(2)  # Rate limiting
+        if config.ENABLE_PUBLISH_INSTAGRAM:
+            logger.info("Publishing to Instagram...")
+            results["instagram"] = self.instagram.publish(video_path, caption, hashtags)
+            time.sleep(2)  # Rate limiting
+        else:
+            logger.info("Instagram publishing disabled in config")
+            results["instagram"] = {"status": "skipped", "error": "Disabled in config"}
         
         # Publish to YouTube
-        logger.info("Publishing to YouTube...")
-        results["youtube"] = self.youtube.publish(video_path, title, caption, hashtags)
-        time.sleep(2)  # Rate limiting
+        if config.ENABLE_PUBLISH_YOUTUBE:
+            logger.info("Publishing to YouTube...")
+            results["youtube"] = self.youtube.publish(video_path, title, caption, hashtags)
+            time.sleep(2)  # Rate limiting
+        else:
+            logger.info("YouTube publishing disabled in config")
+            results["youtube"] = {"status": "skipped", "error": "Disabled in config"}
         
         # Publish to Facebook
-        logger.info("Publishing to Facebook...")
-        results["facebook"] = self.facebook.publish(video_path, caption, hashtags)
+        if config.ENABLE_PUBLISH_FACEBOOK:
+            logger.info("Publishing to Facebook...")
+            results["facebook"] = self.facebook.publish(video_path, caption, hashtags)
+        else:
+            logger.info("Facebook publishing disabled in config")
+            results["facebook"] = {"status": "skipped", "error": "Disabled in config"}
         
         return results
 
