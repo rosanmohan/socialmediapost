@@ -12,7 +12,7 @@ openai==1.6.1
 anthropic==0.18.1
 
 # Media generation
-moviepy==1.0.3  # Version 1.0.3 required for editor module compatibility
+moviepy>=2.0.0  # Updated to match local env and support numpy 2.x
 Pillow>=10.0.0
 opencv-python>=4.8.0
 numpy>=1.24.0
