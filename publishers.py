@@ -64,21 +64,37 @@ class InstagramPublisher:
             logger.info(f"Instagram upload session started: {container_id}")
 
             # Step 2: Upload video binary
+            # Meta's rupload servers are very sensitive to headers.
+            # Some docs suggest the URI handle already contains auth info.
             with open(video_path, 'rb') as video_file:
                 video_data = video_file.read()
             
             file_size = len(video_data)
             headers = {
-                "Authorization": f"OAuth {self.access_token}",
                 "Offset": "0",
                 "File-Size": str(file_size),
                 "Content-Length": str(file_size),
                 "Content-Type": "application/octet-stream"
             }
             
-            logger.info(f"Uploading {file_size} bytes to Instagram...")
-            upload_response = requests.post(upload_url, data=video_data, headers=headers, timeout=600)
+            # Note: We keep Authorization just in case, but some rupload docs say it's not needed
+            headers["Authorization"] = f"OAuth {self.access_token}"
             
+            logger.info(f"Uploading {file_size} bytes to Instagram...")
+            upload_response = requests.post(
+                upload_url, 
+                data=video_data, 
+                headers=headers,
+                timeout=600
+            )
+            
+            if upload_response.status_code != 200:
+                # If it failed with 400/403, try WITHOUT Authorization header (often needed for rupload)
+                if upload_response.status_code in [400, 401, 403]:
+                    logger.info("Retrying upload without Authorization header...")
+                    del headers["Authorization"]
+                    upload_response = requests.post(upload_url, data=video_data, headers=headers, timeout=600)
+
             if upload_response.status_code != 200:
                 logger.error(f"Instagram binary upload failed: {upload_response.text}")
                 return {"status": "failed", "error": upload_response.text}
