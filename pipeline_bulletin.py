@@ -125,14 +125,18 @@ class BulletinPipeline:
             
             hashtags = ["news", "breakingnews", "shorts", "trending", "viral", "top5"]
             
-            # Step 5: Upload to YouTube
+            # Step 5: Upload to YouTube (if enabled)
             logger.info("Step 5: Uploading to YouTube...")
-            publish_result = self.youtube_publisher.publish(
-                video_path,
-                title,
-                description,
-                hashtags
-            )
+            if config.ENABLE_PUBLISH_YOUTUBE:
+                publish_result = self.youtube_publisher.publish(
+                    video_path,
+                    title,
+                    description,
+                    hashtags
+                )
+            else:
+                logger.info("YouTube publishing disabled in config")
+                publish_result = {"status": "skipped", "error": "Disabled in config"}
             
             # Step 6: Save to database
             logger.info("Step 6: Saving to database...")
@@ -182,14 +186,17 @@ class BulletinPipeline:
                 db.close()
             
             # Step 7: Finalize result
-            if publish_result.get("status") == "success":
+            if publish_result.get("status") in ["success", "skipped"]:
                 result["status"] = "success"
                 result["publish_results"] = {"youtube": publish_result}
-                logger.info("Bulletin pipeline completed successfully")
-                send_notification(
-                    f"Bulletin video uploaded to YouTube! Post ID: {result.get('post_id')}",
-                    "success"
-                )
+                if publish_result.get("status") == "success":
+                    logger.info("Bulletin pipeline completed successfully")
+                    send_notification(
+                        f"Bulletin video uploaded to YouTube! Post ID: {result.get('post_id')}",
+                        "success"
+                    )
+                else:
+                    logger.info("Bulletin pipeline completed (YouTube publishing skipped)")
             else:
                 result["status"] = "partial_failure"
                 result["errors"].append("YouTube upload failed")
