@@ -7,10 +7,11 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from loguru import logger
 import config
-from moviepy.editor import (
+from moviepy import (
     VideoFileClip, ImageClip, CompositeVideoClip,
     AudioFileClip, concatenate_videoclips, ColorClip
 )
+from moviepy.video.fx import Resize, MultiplySpeed, FadeIn
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from gtts import gTTS
@@ -50,7 +51,7 @@ class MediaGenerator:
             video_with_text = self._add_text_overlays(background, content, duration)
             
             # Step 5: Add audio
-            final_video = video_with_text.set_audio(audio_clip)
+            final_video = video_with_text.with_audio(audio_clip)
             
             # Step 6: Export video
             output_path = config.MEDIA_DIR / f"video_{int(os.path.getmtime(audio_path))}.mp4"
@@ -121,7 +122,7 @@ class MediaGenerator:
             logger.info(f"Background video duration: {original_duration:.2f}s, needed: {duration:.2f}s")
             
             # Resize first
-            bg_clip = bg_clip.resize((self.width, self.height))
+            bg_clip = bg_clip.with_effects([Resize(new_size=(self.width, self.height))])
             
             if bg_clip.duration < duration:
                 # Calculate how much we need to slow it down
@@ -136,8 +137,8 @@ class MediaGenerator:
                     loops_needed = max(1, int(duration / bg_clip.duration) + 1)
                     # Slow down each loop slightly (2x slower) for smoother appearance
                     try:
-                        from moviepy.video.fx.all import speedx
-                        slowed_clip = bg_clip.fx(speedx, 0.5)  # 2x slower
+                        from moviepy.video.fx import MultiplySpeed
+                        slowed_clip = bg_clip.with_effects([MultiplySpeed(0.5)])  # 2x slower
                         looped_clips = [slowed_clip] * loops_needed
                         bg_clip = concatenate_videoclips(looped_clips)
                         logger.info(f"Created {loops_needed} loops with 2x slowdown")
@@ -149,9 +150,9 @@ class MediaGenerator:
                 else:
                     # Normal slowdown - use speedx for smooth result
                     try:
-                        from moviepy.video.fx.all import speedx
+                        from moviepy.video.fx import MultiplySpeed
                         # speed_factor: 0.25 means 4x slower (if video is 10s, becomes 40s)
-                        bg_clip = bg_clip.fx(speedx, speed_factor)
+                        bg_clip = bg_clip.with_effects([MultiplySpeed(speed_factor)])
                         logger.info(f"Video slowed down using speedx: {speed_factor:.3f}x")
                     except (ImportError, AttributeError, TypeError) as e:
                         logger.warning(f"speedx import/usage failed: {e}, trying alternative method")
@@ -169,10 +170,10 @@ class MediaGenerator:
                             bg_clip = concatenate_videoclips(looped_clips)
             
             # Ensure exact duration match
-            bg_clip = bg_clip.subclip(0, min(bg_clip.duration, duration))
+            bg_clip = bg_clip.subclipped(0, min(bg_clip.duration, duration))
             if bg_clip.duration < duration:
                 # If still shorter, extend last frame
-                bg_clip = bg_clip.fx(lambda clip: clip.set_duration(duration))
+                bg_clip = bg_clip.with_effects([lambda clip: clip.with_duration(duration)])
             
             logger.info(f"Final background duration: {bg_clip.duration:.2f}s")
             return bg_clip
@@ -180,14 +181,14 @@ class MediaGenerator:
             # Use image background with zoom and pan effect
             bg_path = bg_images[0]
             img_clip = ImageClip(str(bg_path), duration=duration)
-            img_clip = img_clip.resize((self.width, self.height))
+            img_clip = img_clip.with_effects([Resize(new_size=(self.width, self.height))])
             
             # Add dynamic zoom and pan effect
             def zoom_pan(t):
                 zoom_factor = 1 + 0.2 * t / duration  # Zoom from 1.0 to 1.2
                 return zoom_factor
             
-            img_clip = img_clip.resize(zoom_pan)
+            img_clip = img_clip.with_effects([Resize(new_size=zoom_pan)])
             # Add slight opacity variation for depth
             img_clip = img_clip.fx(lambda clip: clip.set_opacity(0.9))
             return img_clip
@@ -238,7 +239,7 @@ class MediaGenerator:
             def zoom(t):
                 return 1 + 0.15 * t / duration
             
-            clip = clip.resize(zoom)
+            clip = clip.with_effects([Resize(new_size=zoom)])
             
             return clip
             
@@ -329,7 +330,7 @@ class MediaGenerator:
 # font_size removed - using is_hook flag instead
             )
             if hook_clip:
-                clips.append(hook_clip.set_start(0))
+                clips.append(hook_clip.with_start(0))
                 logger.info(f"Hook text clip created: duration={hook_clip.duration:.2f}s")
             else:
                 logger.error("Failed to create hook text clip")
@@ -385,7 +386,7 @@ class MediaGenerator:
                     is_hook=False  # is_hook=False will use 110px automatically
                 )
                 if text_clip:
-                    clips.append(text_clip.set_start(start_time))
+                    clips.append(text_clip.with_start(start_time))
                     text_clips_created += 1
                     logger.info(f"Text clip {idx+1} created successfully")
                 else:
@@ -492,7 +493,7 @@ class MediaGenerator:
             temp_file.close()
             
             # STEP 8: Create clip - NO FADE, SIMPLE APPROACH
-            clip = ImageClip(temp_file.name, duration=duration_val)
+            clip = ImageClip(temp_file.name).with_duration(duration_val)
             
             # STEP 9: Clean up
             import atexit
