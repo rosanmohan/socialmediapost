@@ -31,6 +31,12 @@ jobs:
         pip install --no-cache-dir -r requirements.txt
         pip install psycopg2-binary  # Required for Postgres
 
+    - name: Run Database Migration
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        python migrate_database.py || echo "Migration skipped (table may not exist yet)"
+
     - name: Run Bulletin Pipeline
       env:
         # API Keys from GitHub Secrets
