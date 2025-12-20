@@ -86,29 +86,38 @@ class InstagramPublisher:
             logger.info("Instagram video uploaded successfully")
             
             # Step 3: Publish container
-            # We already have container_id from Step 1
-
-            logger.info(f"Instagram container created: {container_id}")
-            
-            # Step 2: Publish container
             publish_url = f"https://graph.facebook.com/v18.0/{self.instagram_account_id}/media_publish"
             publish_params = {
                 "creation_id": container_id,
                 "access_token": self.access_token
             }
             
-            # Wait a bit for processing
-            time.sleep(5)
+            # Wait for processing (it can take up to 1-2 minutes)
+            logger.info("Waiting for Instagram to process the video...")
+            max_retries = 10
+            for i in range(max_retries):
+                time.sleep(15)  # Wait 15 seconds between retries
+                logger.info(f"Publish attempt {i+1}/{max_retries}...")
+                
+                publish_response = requests.post(publish_url, params=publish_params, timeout=60)
+                
+                if publish_response.status_code == 200:
+                    post_id = publish_response.json().get("id")
+                    logger.info(f"Instagram post published: {post_id}")
+                    return {"status": "success", "post_id": post_id, "platform": "instagram"}
+                
+                error_data = publish_response.json().get("error", {})
+                error_msg = error_data.get("message", "")
+                
+                # If it's not a "processing" error, stop retrying
+                if "Media processing has not been completed" not in error_msg:
+                    logger.error(f"Instagram publish failed: {publish_response.text}")
+                    return {"status": "failed", "error": publish_response.text}
+                
+                logger.info("Video still processing, waiting...")
             
-            publish_response = requests.post(publish_url, params=publish_params, timeout=60)
-            
-            if publish_response.status_code == 200:
-                post_id = publish_response.json().get("id")
-                logger.info(f"Instagram post published: {post_id}")
-                return {"status": "success", "post_id": post_id, "platform": "instagram"}
-            else:
-                logger.error(f"Instagram publish failed: {publish_response.text}")
-                return {"status": "failed", "error": publish_response.text}
+            logger.error("Instagram publish timed out after 150 seconds")
+            return {"status": "failed", "error": "Processing timed out"}
                 
         except Exception as e:
             logger.error(f"Error publishing to Instagram: {e}")
