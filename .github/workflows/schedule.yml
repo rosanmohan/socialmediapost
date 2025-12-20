@@ -61,7 +61,7 @@ jobs:
         DRIVE_BACKGROUNDS_FOLDER_ID: ${{ secrets.DRIVE_BACKGROUNDS_FOLDER_ID }}
         
         # Publishing Toggles (Disable until credentials are configured)
-        ENABLE_PUBLISH_YOUTUBE: "false"
+        ENABLE_PUBLISH_YOUTUBE: "true"
         ENABLE_PUBLISH_INSTAGRAM: "true"
         ENABLE_PUBLISH_FACEBOOK: "true"
         
