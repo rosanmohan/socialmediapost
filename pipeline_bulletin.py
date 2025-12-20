@@ -10,7 +10,7 @@ from fuzzywuzzy import fuzz
 from news_service import NewsService
 from media_generator_bulletin import BulletinMediaGenerator
 from royalty_free_audio import RoyaltyFreeAudio
-from publishers import YouTubePublisher
+from publishers import YouTubePublisher, InstagramPublisher, FacebookPublisher
 from utils import send_notification
 import config
 
@@ -22,6 +22,8 @@ class BulletinPipeline:
         self.media_generator = BulletinMediaGenerator()
         self.royalty_free_audio = RoyaltyFreeAudio()
         self.youtube_publisher = YouTubePublisher()
+        self.instagram_publisher = InstagramPublisher()
+        self.facebook_publisher = FacebookPublisher()
     
     def run(self) -> Dict:
         """Run the bulletin pipeline"""
@@ -125,18 +127,61 @@ class BulletinPipeline:
             
             hashtags = ["news", "breakingnews", "shorts", "trending", "viral", "top5"]
             
-            # Step 5: Upload to YouTube (if enabled)
-            logger.info("Step 5: Uploading to YouTube...")
+            # Step 5: Publishing to social media platforms...
+            logger.info("Step 5: Publishing to social media platforms...")
+            publish_results = {}
+            
+            # Try YouTube
             if config.ENABLE_PUBLISH_YOUTUBE:
-                publish_result = self.youtube_publisher.publish(
-                    video_path,
-                    title,
-                    description,
-                    hashtags
-                )
+                logger.info("Publishing to YouTube...")
+                try:
+                    youtube_result = self.youtube_publisher.publish(
+                        video_path,
+                        title,
+                        description,
+                        hashtags
+                    )
+                    publish_results["youtube"] = youtube_result
+                except Exception as e:
+                    logger.error(f"YouTube upload exception: {e}")
+                    publish_results["youtube"] = {"status": "failed", "error": str(e)}
             else:
                 logger.info("YouTube publishing disabled in config")
-                publish_result = {"status": "skipped", "error": "Disabled in config"}
+                publish_results["youtube"] = {"status": "skipped", "error": "Disabled in config"}
+            
+            # Try Instagram
+            if config.ENABLE_PUBLISH_INSTAGRAM:
+                logger.info("Publishing to Instagram...")
+                try:
+                    instagram_result = self.instagram_publisher.publish(
+                        video_path,
+                        description,
+                        hashtags
+                    )
+                    publish_results["instagram"] = instagram_result
+                except Exception as e:
+                    logger.error(f"Instagram upload exception: {e}")
+                    publish_results["instagram"] = {"status": "failed", "error": str(e)}
+            else:
+                logger.info("Instagram publishing disabled in config")
+                publish_results["instagram"] = {"status": "skipped", "error": "Disabled in config"}
+            
+            # Try Facebook
+            if config.ENABLE_PUBLISH_FACEBOOK:
+                logger.info("Publishing to Facebook...")
+                try:
+                    facebook_result = self.facebook_publisher.publish(
+                        video_path,
+                        description,
+                        hashtags
+                    )
+                    publish_results["facebook"] = facebook_result
+                except Exception as e:
+                    logger.error(f"Facebook upload exception: {e}")
+                    publish_results["facebook"] = {"status": "failed", "error": str(e)}
+            else:
+                logger.info("Facebook publishing disabled in config")
+                publish_results["facebook"] = {"status": "skipped", "error": "Disabled in config"}
             
             # Step 6: Save to database
             logger.info("Step 6: Saving to database...")
@@ -164,16 +209,17 @@ class BulletinPipeline:
                             news_item.used_in_post = True
                             news_item.used_at = datetime.utcnow()
                 
-                # Log publish result
-                publish_log = PublishLog(
-                    post_id=post.id,
-                    platform="youtube",
-                    status=publish_result.get("status", "failed"),
-                    response=str(publish_result),
-                    posted_at=datetime.utcnow() if publish_result.get("status") == "success" else None,
-                    error_message=publish_result.get("error", "")
-                )
-                db.add(publish_log)
+                # Log publish results for each platform
+                for platform, platform_result in publish_results.items():
+                    publish_log = PublishLog(
+                        post_id=post.id,
+                        platform=platform,
+                        status=platform_result.get("status", "failed"),
+                        response=str(platform_result),
+                        posted_at=datetime.utcnow() if platform_result.get("status") == "success" else None,
+                        error_message=platform_result.get("error", "")
+                    )
+                    db.add(publish_log)
                 db.commit()
                 
                 result["post_id"] = post.id
@@ -186,22 +232,30 @@ class BulletinPipeline:
                 db.close()
             
             # Step 7: Finalize result
-            if publish_result.get("status") in ["success", "skipped"]:
+            result["publish_results"] = publish_results
+            
+            # Count successes and failures
+            success_count = sum(1 for r in publish_results.values() if r.get("status") == "success")
+            skipped_count = sum(1 for r in publish_results.values() if r.get("status") == "skipped")
+            failed_count = sum(1 for r in publish_results.values() if r.get("status") == "failed")
+            
+            # Determine overall status
+            if success_count > 0:
                 result["status"] = "success"
-                result["publish_results"] = {"youtube": publish_result}
-                if publish_result.get("status") == "success":
-                    logger.info("Bulletin pipeline completed successfully")
-                    send_notification(
-                        f"Bulletin video uploaded to YouTube! Post ID: {result.get('post_id')}",
-                        "success"
-                    )
-                else:
-                    logger.info("Bulletin pipeline completed (YouTube publishing skipped)")
+                platforms_uploaded = [p for p, r in publish_results.items() if r.get("status") == "success"]
+                logger.info(f"Bulletin pipeline completed successfully! Uploaded to: {', '.join(platforms_uploaded)}")
+                send_notification(
+                    f"Bulletin video uploaded to {', '.join(platforms_uploaded)}! Post ID: {result.get('post_id')}",
+                    "success"
+                )
+            elif skipped_count == len(publish_results):
+                result["status"] = "success"
+                logger.info("Bulletin pipeline completed (all platforms skipped)")
             else:
                 result["status"] = "partial_failure"
-                result["errors"].append("YouTube upload failed")
-                result["publish_results"] = {"youtube": publish_result}
-                logger.warning("Bulletin video generated but YouTube upload failed")
+                failed_platforms = [p for p, r in publish_results.items() if r.get("status") == "failed"]
+                result["errors"].append(f"Upload failed for: {', '.join(failed_platforms)}")
+                logger.warning(f"Bulletin video generated but uploads failed for: {', '.join(failed_platforms)}")
             
             result["end_time"] = datetime.utcnow()
             result["duration_seconds"] = (result["end_time"] - start_time).total_seconds()
