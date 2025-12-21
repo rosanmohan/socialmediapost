@@ -8,6 +8,7 @@ from typing import Dict, Optional
 from loguru import logger
 import config
 from pathlib import Path
+import requests
 
 class InstagramPublisher:
     """Publish to Instagram Reels"""
@@ -19,32 +20,57 @@ class InstagramPublisher:
     def publish(self, video_path: str, caption: str, hashtags: list) -> Dict:
         """Publish video to Instagram Reels"""
         # Check if credentials are configured
-        if not self.access_token or not self.instagram_account_id:
-            logger.debug("Instagram credentials not configured - skipping publish")
-            return {"status": "failed", "error": "Credentials not configured"}
+        if not self.access_token:
+            logger.warning("Instagram: FACEBOOK_ACCESS_TOKEN is missing!")
+            return {"status": "failed", "error": "FACEBOOK_ACCESS_TOKEN missing"}
+        if not self.instagram_account_id:
+            logger.warning("Instagram: INSTAGRAM_BUSINESS_ACCOUNT_ID is missing!")
+            return {"status": "failed", "error": "INSTAGRAM_BUSINESS_ACCOUNT_ID missing"}
         
         # Check for placeholder values
-        if (self.access_token == "your_facebook_access_token" or 
-            self.instagram_account_id == "your_instagram_business_account_id"):
-            logger.debug("Instagram credentials contain placeholder values - skipping publish")
-            return {"status": "failed", "error": "Credentials not configured"}
+        if "your_" in self.access_token or "your_" in self.instagram_account_id:
+            logger.warning("Instagram: Placeholder values detected in credentials!")
+            return {"status": "failed", "error": "Placeholder values in credentials"}
         
         logger.info("Publishing to Instagram...")
         
         try:
-            # Instagram Graph API requires two-step upload
-            # Step 1: Create media container
-            import requests
+            # Step 0: Upload video to Cloudinary to get a public URL
+            # Instagram requires a public video_url for the stable media container creation
+            import cloudinary
+            import cloudinary.uploader
             
-            hashtags_str = " ".join([f"#{tag}" for tag in hashtags[:30]])  # Limit hashtags
+            # Configure Cloudinary
+            cloudinary.config(
+                cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+                api_key=os.getenv("CLOUDINARY_API_KEY"),
+                api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+                secure=True
+            )
+            
+            logger.info("Uploading video to Cloudinary for Instagram fallback...")
+            upload_result = cloudinary.uploader.upload(
+                video_path,
+                resource_type="video",
+                folder="social_media_posts"
+            )
+            
+            public_video_url = upload_result.get("secure_url")
+            cloudinary_public_id = upload_result.get("public_id")
+            
+            if not public_video_url:
+                return {"status": "failed", "error": "Failed to get public URL from Cloudinary"}
+                
+            logger.info(f"Video uploaded to Cloudinary: {public_video_url}")
+
+            # Step 1: Create media container using the public URL (Stable industry standard)
+            hashtags_str = " ".join([f"#{tag}" for tag in hashtags[:30]])
             full_caption = f"{caption}\n\n{hashtags_str}"
             
-            # Instagram Graph API Resumable Upload for Reels
-            # Step 1: Initialize upload session
             init_url = f"https://graph.facebook.com/v18.0/{self.instagram_account_id}/media"
             init_params = {
                 "media_type": "REELS",
-                "upload_type": "resumable",
+                "video_url": public_video_url,
                 "caption": full_caption[:2200],
                 "access_token": self.access_token
             }
@@ -52,59 +78,65 @@ class InstagramPublisher:
             init_response = requests.post(init_url, params=init_params)
             
             if init_response.status_code != 200:
-                logger.error(f"Instagram init failed: {init_response.text}")
+                logger.error(f"Instagram container creation failed: {init_response.text}")
+                # Clean up Cloudinary
+                cloudinary.uploader.destroy(cloudinary_public_id, resource_type="video")
                 return {"status": "failed", "error": init_response.text}
                 
-            upload_url = init_response.json().get("uri")
             container_id = init_response.json().get("id")
-            
-            if not upload_url:
-                 return {"status": "failed", "error": "No upload URL received from Instagram"}
-
-            logger.info(f"Instagram upload session started: {container_id}")
-
-            # Step 2: Upload video binary
-            with open(video_path, 'rb') as video_file:
-                video_data = video_file.read()
-                
-            headers = {
-                "Authorization": f"OAuth {self.access_token}",
-                "Offset": "0",
-                "File-Size": str(len(video_data))
-            }
-            
-            upload_response = requests.post(upload_url, data=video_data, headers=headers, timeout=600)
-            
-            if upload_response.status_code != 200:
-                logger.error(f"Instagram binary upload failed: {upload_response.text}")
-                return {"status": "failed", "error": upload_response.text}
-            
-            logger.info("Instagram video uploaded successfully")
-            
-            # Step 3: Publish container
-            # We already have container_id from Step 1
-
             logger.info(f"Instagram container created: {container_id}")
-            
-            # Step 2: Publish container
+
+            # Step 2: Publish container with retry loop for processing
             publish_url = f"https://graph.facebook.com/v18.0/{self.instagram_account_id}/media_publish"
             publish_params = {
                 "creation_id": container_id,
                 "access_token": self.access_token
             }
             
-            # Wait a bit for processing
-            time.sleep(5)
+            logger.info("Waiting for Instagram to process the video from Cloudinary...")
+            max_retries = 15
+            post_id = None
             
-            publish_response = requests.post(publish_url, params=publish_params, timeout=60)
+            for i in range(max_retries):
+                time.sleep(20)  # Wait 20 seconds between retries
+                logger.info(f"Publish attempt {i+1}/{max_retries}...")
+                
+                publish_response = requests.post(publish_url, params=publish_params, timeout=60)
+                
+                if publish_response.status_code == 200:
+                    post_id = publish_response.json().get("id")
+                    logger.info(f"Instagram post published successfully: {post_id}")
+                    break
+                
+                error_data = publish_response.json().get("error", {})
+                error_msg = error_data.get("message", "")
+                error_code = error_data.get("code")
+                
+                # Treat "Media processing has not been completed" and "Media ID is not available" (9007) as "wait" states
+                is_processing = "Media processing has not been completed" in error_msg or \
+                                "Media ID is not available" in error_msg or \
+                                error_code == 9007
+                
+                if not is_processing:
+                    logger.error(f"Instagram publish failed: {publish_response.text}")
+                    # Clean up Cloudinary before returning error
+                    cloudinary.uploader.destroy(cloudinary_public_id, resource_type="video")
+                    return {"status": "failed", "error": publish_response.text}
+                
+                logger.info("Video still processing at Instagram, waiting...")
             
-            if publish_response.status_code == 200:
-                post_id = publish_response.json().get("id")
-                logger.info(f"Instagram post published: {post_id}")
+            # Final cleanup of Cloudinary video
+            try:
+                cloudinary.uploader.destroy(cloudinary_public_id, resource_type="video")
+                logger.info("Cleaned up temporary video from Cloudinary")
+            except Exception as e:
+                logger.warning(f"Metadata cleanup warning: {e}")
+
+            if post_id:
                 return {"status": "success", "post_id": post_id, "platform": "instagram"}
             else:
-                logger.error(f"Instagram publish failed: {publish_response.text}")
-                return {"status": "failed", "error": publish_response.text}
+                return {"status": "failed", "error": "Instagram publish timed out"}
+
                 
         except Exception as e:
             logger.error(f"Error publishing to Instagram: {e}")
@@ -248,15 +280,17 @@ class FacebookPublisher:
     def publish(self, video_path: str, caption: str, hashtags: list) -> Dict:
         """Publish video to Facebook"""
         # Check if credentials are configured
-        if not self.access_token or not self.page_id:
-            logger.debug("Facebook credentials not configured - skipping publish")
-            return {"status": "failed", "error": "Credentials not configured"}
-        
+        if not self.access_token:
+            logger.warning("Facebook: FACEBOOK_ACCESS_TOKEN is missing!")
+            return {"status": "failed", "error": "FACEBOOK_ACCESS_TOKEN missing"}
+        if not self.page_id:
+            logger.warning("Facebook: FACEBOOK_PAGE_ID is missing!")
+            return {"status": "failed", "error": "FACEBOOK_PAGE_ID missing"}
+            
         # Check for placeholder values
-        if (self.access_token == "your_facebook_access_token" or 
-            self.page_id == "your_facebook_page_id"):
-            logger.debug("Facebook credentials contain placeholder values - skipping publish")
-            return {"status": "failed", "error": "Credentials not configured"}
+        if "your_" in self.access_token or "your_" in self.page_id:
+            logger.warning("Facebook: Placeholder values detected in credentials!")
+            return {"status": "failed", "error": "Placeholder values in credentials"}
         
         logger.info("Publishing to Facebook...")
         
@@ -352,4 +386,28 @@ class PublisherManager:
             results["facebook"] = {"status": "skipped", "error": "Disabled in config"}
         
         return results
+
+    def validate_all(self):
+        """Validate all enabled publishers before starting expensive video generation"""
+        errors = []
+        if config.ENABLE_PUBLISH_YOUTUBE:
+            if not self.youtube.youtube:
+                errors.append("YouTube: Missing credentials or failed initialization. Check .env")
+        
+        if config.ENABLE_PUBLISH_INSTAGRAM:
+            if not self.instagram.access_token or not self.instagram.instagram_account_id:
+                errors.append("Instagram: Missing credentials in .env")
+            elif "your_" in (self.instagram.access_token or "") or "your_" in (self.instagram.instagram_account_id or ""):
+                errors.append("Instagram: Placeholder values detected in .env")
+
+        if config.ENABLE_PUBLISH_FACEBOOK:
+            if not self.facebook.access_token or not self.facebook.page_id:
+                errors.append("Facebook: Missing credentials in .env")
+            elif "your_" in (self.facebook.access_token or "") or "your_" in (self.facebook.page_id or ""):
+                errors.append("Facebook: Placeholder values detected in .env")
+        
+        if errors:
+            raise Exception("Publisher Validation Failed:\n" + "\n".join(errors))
+        
+        logger.info("✅ All enabled publishers validated and ready.")
 

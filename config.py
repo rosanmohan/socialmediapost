@@ -6,10 +6,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
-
-# Base paths
 BASE_DIR = Path(__file__).parent
+env_path = BASE_DIR / ".env"
+
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv() # Fallback to standard loading
 DATA_DIR = BASE_DIR / "data"
 MEDIA_DIR = DATA_DIR / "generated_media"
 LOGS_DIR = BASE_DIR / "logs"
@@ -97,8 +100,6 @@ VIDEO_DURATION_SECONDS = 45  # Target duration
 MAX_NEWS_ITEMS_TO_FETCH = 20
 TOP_N_NEWS_TO_CONSIDER = 3
 MIN_NEWS_AGE_HOURS = 0
-MAX_NEWS_AGE_HOURS = 12
-
 MAX_NEWS_AGE_HOURS = 12
 
 # Google Drive Assets (Optional - for cloud storage of large files)

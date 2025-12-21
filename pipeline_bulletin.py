@@ -10,7 +10,7 @@ from fuzzywuzzy import fuzz
 from news_service import NewsService
 from media_generator_bulletin import BulletinMediaGenerator
 from royalty_free_audio import RoyaltyFreeAudio
-from publishers import YouTubePublisher, InstagramPublisher, FacebookPublisher
+from publishers import PublisherManager
 from utils import send_notification
 import config
 
@@ -21,9 +21,7 @@ class BulletinPipeline:
         self.news_service = NewsService()
         self.media_generator = BulletinMediaGenerator()
         self.royalty_free_audio = RoyaltyFreeAudio()
-        self.youtube_publisher = YouTubePublisher()
-        self.instagram_publisher = InstagramPublisher()
-        self.facebook_publisher = FacebookPublisher()
+        self.publisher = PublisherManager()
     
     def run(self) -> Dict:
         """Run the bulletin pipeline"""
@@ -36,7 +34,11 @@ class BulletinPipeline:
         }
         
         try:
-            # Step 1: Fetch exactly 5 UNUSED news items (no duplicates)
+            # Step 1: Pre-validate connections
+            # This fails early if secrets are missing, saving GitHub Action minutes
+            self.publisher.validate_all()
+            
+            # Step 2: Fetch exactly 5 UNUSED news items (no duplicates)
             logger.info("Step 1: Fetching exactly 5 unused news items...")
             top_5_news = self._get_exactly_5_unused_news()
             
@@ -135,7 +137,7 @@ class BulletinPipeline:
             if config.ENABLE_PUBLISH_YOUTUBE:
                 logger.info("Publishing to YouTube...")
                 try:
-                    youtube_result = self.youtube_publisher.publish(
+                    youtube_result = self.publisher.youtube.publish(
                         video_path,
                         title,
                         description,
@@ -153,7 +155,7 @@ class BulletinPipeline:
             if config.ENABLE_PUBLISH_INSTAGRAM:
                 logger.info("Publishing to Instagram...")
                 try:
-                    instagram_result = self.instagram_publisher.publish(
+                    instagram_result = self.publisher.instagram.publish(
                         video_path,
                         description,
                         hashtags
@@ -170,7 +172,7 @@ class BulletinPipeline:
             if config.ENABLE_PUBLISH_FACEBOOK:
                 logger.info("Publishing to Facebook...")
                 try:
-                    facebook_result = self.facebook_publisher.publish(
+                    facebook_result = self.publisher.facebook.publish(
                         video_path,
                         description,
                         hashtags
