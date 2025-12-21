@@ -104,5 +104,10 @@ class GoogleDriveAssets:
             return local_path
             
         except Exception as e:
-            logger.error(f"Error downloading from Drive: {e}")
+            if "invalid_scope" in str(e):
+                logger.warning("⚠️ Google Drive: Access denied (Invalid Scope).")
+                logger.info("💡 To fix this, your YouTube Refresh Token needs for the 'drive.readonly' scope.")
+                logger.info("💡 You can continue using local assets in /assets folder for now.")
+            else:
+                logger.error(f"Error downloading from Drive: {e}")
             return None
