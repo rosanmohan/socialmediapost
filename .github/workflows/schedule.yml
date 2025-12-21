@@ -49,6 +49,16 @@ jobs:
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
         YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         
+        # Facebook & Instagram Credentials
+        FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+        FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+        INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+
+        # Cloudinary Credentials (For stable Instagram posting)
+        CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+        CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+        CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        
         # Database (Required for persistence)
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
@@ -60,10 +70,10 @@ jobs:
         DRIVE_AUDIO_FOLDER_ID: ${{ secrets.DRIVE_AUDIO_FOLDER_ID }}
         DRIVE_BACKGROUNDS_FOLDER_ID: ${{ secrets.DRIVE_BACKGROUNDS_FOLDER_ID }}
         
-        # Publishing Toggles (Disable until credentials are configured)
-        ENABLE_PUBLISH_YOUTUBE: "false"
-        ENABLE_PUBLISH_INSTAGRAM: "false"
-        ENABLE_PUBLISH_FACEBOOK: "false"
+        # Publishing Toggles (ENABLED)
+        ENABLE_PUBLISH_YOUTUBE: "true"
+        ENABLE_PUBLISH_INSTAGRAM: "true"
+        ENABLE_PUBLISH_FACEBOOK: "true"
         
         # Configuration
         TIMEZONE: "Asia/Kolkata"

@@ -20,15 +20,17 @@ class InstagramPublisher:
     def publish(self, video_path: str, caption: str, hashtags: list) -> Dict:
         """Publish video to Instagram Reels"""
         # Check if credentials are configured
-        if not self.access_token or not self.instagram_account_id:
-            logger.debug("Instagram credentials not configured - skipping publish")
-            return {"status": "failed", "error": "Credentials not configured"}
+        if not self.access_token:
+            logger.warning("Instagram: FACEBOOK_ACCESS_TOKEN is missing!")
+            return {"status": "failed", "error": "FACEBOOK_ACCESS_TOKEN missing"}
+        if not self.instagram_account_id:
+            logger.warning("Instagram: INSTAGRAM_BUSINESS_ACCOUNT_ID is missing!")
+            return {"status": "failed", "error": "INSTAGRAM_BUSINESS_ACCOUNT_ID missing"}
         
         # Check for placeholder values
-        if (self.access_token == "your_facebook_access_token" or 
-            self.instagram_account_id == "your_instagram_business_account_id"):
-            logger.debug("Instagram credentials contain placeholder values - skipping publish")
-            return {"status": "failed", "error": "Credentials not configured"}
+        if "your_" in self.access_token or "your_" in self.instagram_account_id:
+            logger.warning("Instagram: Placeholder values detected in credentials!")
+            return {"status": "failed", "error": "Placeholder values in credentials"}
         
         logger.info("Publishing to Instagram...")
         
@@ -278,15 +280,17 @@ class FacebookPublisher:
     def publish(self, video_path: str, caption: str, hashtags: list) -> Dict:
         """Publish video to Facebook"""
         # Check if credentials are configured
-        if not self.access_token or not self.page_id:
-            logger.debug("Facebook credentials not configured - skipping publish")
-            return {"status": "failed", "error": "Credentials not configured"}
-        
+        if not self.access_token:
+            logger.warning("Facebook: FACEBOOK_ACCESS_TOKEN is missing!")
+            return {"status": "failed", "error": "FACEBOOK_ACCESS_TOKEN missing"}
+        if not self.page_id:
+            logger.warning("Facebook: FACEBOOK_PAGE_ID is missing!")
+            return {"status": "failed", "error": "FACEBOOK_PAGE_ID missing"}
+            
         # Check for placeholder values
-        if (self.access_token == "your_facebook_access_token" or 
-            self.page_id == "your_facebook_page_id"):
-            logger.debug("Facebook credentials contain placeholder values - skipping publish")
-            return {"status": "failed", "error": "Credentials not configured"}
+        if "your_" in self.access_token or "your_" in self.page_id:
+            logger.warning("Facebook: Placeholder values detected in credentials!")
+            return {"status": "failed", "error": "Placeholder values in credentials"}
         
         logger.info("Publishing to Facebook...")
         
@@ -382,4 +386,28 @@ class PublisherManager:
             results["facebook"] = {"status": "skipped", "error": "Disabled in config"}
         
         return results
+
+    def validate_all(self):
+        """Validate all enabled publishers before starting expensive video generation"""
+        errors = []
+        if config.ENABLE_PUBLISH_YOUTUBE:
+            if not self.youtube.youtube:
+                errors.append("YouTube: Missing credentials or failed initialization. Check .env")
+        
+        if config.ENABLE_PUBLISH_INSTAGRAM:
+            if not self.instagram.access_token or not self.instagram.instagram_account_id:
+                errors.append("Instagram: Missing credentials in .env")
+            elif "your_" in (self.instagram.access_token or "") or "your_" in (self.instagram.instagram_account_id or ""):
+                errors.append("Instagram: Placeholder values detected in .env")
+
+        if config.ENABLE_PUBLISH_FACEBOOK:
+            if not self.facebook.access_token or not self.facebook.page_id:
+                errors.append("Facebook: Missing credentials in .env")
+            elif "your_" in (self.facebook.access_token or "") or "your_" in (self.facebook.page_id or ""):
+                errors.append("Facebook: Placeholder values detected in .env")
+        
+        if errors:
+            raise Exception("Publisher Validation Failed:\n" + "\n".join(errors))
+        
+        logger.info("✅ All enabled publishers validated and ready.")
 

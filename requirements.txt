@@ -39,7 +39,6 @@ python-Levenshtein==0.23.0
 # Logging & Monitoring
 loguru==0.7.2
 
-# Optional: For downloading royalty-free audio (for bulletin videos)
-# yt-dlp>=2023.12.30  # For YouTube Audio Library access
-# scipy>=1.11.0  # For generating background music (optional)
+# Media processing/hosting
+cloudinary==1.44.1
 
