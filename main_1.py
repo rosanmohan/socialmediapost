@@ -5,7 +5,7 @@ Creates 20-second videos with top 5 news items and trending audio
 import sys
 from loguru import logger
 import config
-from pipeline_bulletin import BulletinPipeline
+from pipeline_viral import ViralPipeline
 from database import init_db
 
 def setup_logging():
@@ -33,22 +33,16 @@ def main():
     init_db()
     logger.info("Database initialized")
     
-    # Run bulletin pipeline
-    logger.info("Starting bulletin pipeline for 20-second YouTube Shorts...")
-    pipeline = BulletinPipeline()
+    # Run viral pipeline
+    logger.info("Starting Viral Single-Story Pipeline (APPROVED STYLE)...")
+    pipeline = ViralPipeline()
     result = pipeline.run()
     
-    if result["status"] == "success":
-        logger.info("Bulletin pipeline completed successfully")
-        logger.info(f"Post ID: {result.get('post_id')}")
-        logger.info(f"Publish results: {result.get('publish_results', {})}")
-        if result.get("warnings"):
-            logger.warning(f"Warnings: {result.get('warnings', [])}")
+    if result:  # ViralPipeline returns a dict of results or None
+        logger.info("Viral pipeline completed successfully")
+        logger.info(f"Publish results: {result}")
     else:
-        logger.error("Bulletin pipeline failed")
-        logger.error(f"Errors: {result.get('errors', [])}")
-        if result.get("warnings"):
-            logger.warning(f"Warnings: {result.get('warnings', [])}")
+        logger.error("Viral pipeline failed")
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -125,9 +125,37 @@ class ViralContentService:
                 filtered_parts.append(clean_p)
             
             return filtered_parts[:5]
+    def rewrite_headlines(self, headlines: list) -> list:
+        """Rewrites multiple headlines into viral hooks at once"""
+        if not self.client:
+            return headlines
+
+        try:
+            joined_headlines = "\n".join([f"{i+1}. {h}" for i, h in enumerate(headlines)])
+            prompt = (
+                f"Rewrite these news headlines into catchy, viral video hooks (MAX 8 words each).\n"
+                f"Make them punchy and dramatic. Output ONLY the rewritten headlines, one per line, numbered.\n\n"
+                f"Headlines:\n{joined_headlines}"
+            )
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=200
+            )
+            
+            lines = response.choices[0].message.content.strip().split("\n")
+            rewritten = []
+            for line in lines:
+                if "." in line[:3]:
+                    rewritten.append(line.split(".", 1)[1].strip())
+                elif line.strip():
+                    rewritten.append(line.strip())
+            
+            return rewritten[:len(headlines)]
         except Exception as e:
-            logger.error(f"Error summarizing story: {e}")
-            return [f"Breaking: {headline}", "Developments are moving fast.", "The situation is evolving now.", "Stay tuned for more updates."]
+            logger.error(f"Error rewriting headlines: {e}")
+            return headlines
 
     def get_color_code(self, category: str) -> str:
         """Returns the accent color based on news type"""
