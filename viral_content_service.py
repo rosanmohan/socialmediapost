@@ -125,6 +125,10 @@ class ViralContentService:
                 filtered_parts.append(clean_p)
             
             return filtered_parts[:5]
+        except Exception as e:
+            logger.error(f"Error summarizing story: {e}")
+            return [f"Breaking news: {headline}", "Developments are occurring rapidly.", "The situation is evolving by the hour.", "Stay tuned for further updates."]
+
     def rewrite_headlines(self, headlines: list) -> list:
         """Rewrites multiple headlines into viral hooks at once"""
         if not self.client:
