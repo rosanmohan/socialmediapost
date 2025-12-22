@@ -72,7 +72,14 @@ class SystemLog(Base):
     log_metadata = Column(Text)  # JSON string for additional data (renamed from metadata to avoid SQLAlchemy conflict)
 
 # Database setup
-engine = create_engine(config.DATABASE_URL, echo=False)
+# pool_pre_ping=True checks if connection is alive before using it
+# pool_recycle=300 recycles connections every 5 minutes (prevents timeouts)
+engine = create_engine(
+    config.DATABASE_URL, 
+    pool_pre_ping=True, 
+    pool_recycle=300, 
+    echo=False
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
