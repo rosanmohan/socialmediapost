@@ -115,22 +115,36 @@ git push origin main
 
 ---
 
+### Email Notifications (Failure Alerts - 5 secrets)
+
+| Secret Name | Value | Description |
+|-------------|-------|-------------|
+| `MAIL_SERVER` | `smtp.gmail.com` | Your SMTP mail server |
+| `MAIL_PORT` | `465` | Usually 465 (SSL) or 587 (TLS) |
+| `MAIL_USERNAME` | `your.email@gmail.com` | Your full email address |
+| `MAIL_PASSWORD` | `your_app_password` | For Gmail: Use an "App Password" |
+| `ALERT_RECIPIENT` | `your.email@gmail.com` | Where to send the alerts |
+
+---
+
+## ✅ Complete Checklist
+
+Add these secrets to GitHub to enable everything:
+
+- [ ] `YOUTUBE_CLIENT_ID`
+- [ ] `YOUTUBE_CLIENT_SECRET`
+- [ ] `YOUTUBE_REFRESH_TOKEN`
+- [ ] `FACEBOOK_ACCESS_TOKEN`
+- [ ] `FACEBOOK_PAGE_ID`
+- [ ] `INSTAGRAM_BUSINESS_ACCOUNT_ID`
+- [ ] `MAIL_SERVER`
+- [ ] `MAIL_PORT`
+- [ ] `MAIL_USERNAME`
+- [ ] `MAIL_PASSWORD`
+- [ ] `ALERT_RECIPIENT`
+
+---
+
 ## 🎯 Quick Copy-Paste Values
-
-**From your files:**
-
-```bash
-# YouTube (from youtube_credentials_backup.txt)
-YOUTUBE_CLIENT_ID=your_id_here
-YOUTUBE_CLIENT_SECRET=your_secret_here
-YOUTUBE_REFRESH_TOKEN=your_token_here
-
-# Facebook (from facebook_token_20251220_231326.txt)
-FACEBOOK_ACCESS_TOKEN=your_long_token_here
-FACEBOOK_PAGE_ID=your_id_here
-
-# Instagram (you need to get this)
-INSTAGRAM_BUSINESS_ACCOUNT_ID=your_id_here
-```
 
 Just copy these values when adding secrets to GitHub!

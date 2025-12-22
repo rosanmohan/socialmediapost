@@ -81,3 +81,27 @@ jobs:
         
       run: |
         python main.py
+
+    - name: Send Email Alert on Failure
+      if: failure()
+      uses: dawidd6/action-send-mail@v3
+      with:
+        # SMTP Settings (Set these in GitHub Secrets)
+        server_address: ${{ secrets.MAIL_SERVER }}
+        server_port: ${{ secrets.MAIL_PORT }}
+        username: ${{ secrets.MAIL_USERNAME }}
+        password: ${{ secrets.MAIL_PASSWORD }}
+        subject: "🚨 Social Media Agent Failure: ${{ github.run_id }}"
+        to: ${{ secrets.ALERT_RECIPIENT }}
+        from: "Social Media Automation Bot"
+        body: |
+          The Social Media Agent encountered a failure.
+          
+          View Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
+          ---
+          Status Summary:
+          ${{ hashFiles('PIPELINE_STATUS.md') != '' && 'Check the attached summary' || 'Pipeline crashed before status generation' }}
+        convert_markdown: true
+        html_body: file://PIPELINE_STATUS.md
+        ignore_cert: true
