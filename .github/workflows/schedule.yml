@@ -1,4 +1,4 @@
-name: Run Bulletin Scheduler
+name: Run Social Media Agent
 
 on:
   schedule:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
-  run-bulletin:
+  run-agent:
     runs-on: ubuntu-latest
     
     steps:
@@ -80,4 +80,4 @@ jobs:
         LOG_LEVEL: "INFO"
         
       run: |
-        python main_1.py
+        python main.py

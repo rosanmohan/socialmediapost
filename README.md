@@ -127,17 +127,19 @@ Place fonts in `assets/fonts/`:
 
 ## Usage
 
-### Run Once (Test Mode)
-```bash
-python main.py --mode run --slot test
-```
+## Usage
 
-### Run 24/7 Scheduler
+### Run Manually (Local)
 ```bash
-python main.py --mode schedule
+python main.py
 ```
+This will fetch the latest news, generate a Viral-style video, and auto-post if enabled.
 
-The scheduler will run continuously and post at the times specified in `POST_TIMES`.
+### Run Automated (GitHub Actions)
+The agent is already configured to run automatically on a schedule via GitHub Actions.
+- **Workflow:** `Run Social Media Agent`
+- **Schedule:** 5 times daily (7:00 AM, 11:00 AM, 3:00 PM, 7:00 PM, 11:00 PM IST)
+- **Manual Trigger:** Go to GitHub Actions → Select workflow → click "Run workflow".
 
 ### Run as Background Service (Linux/macOS)
 ```bash
@@ -154,22 +156,22 @@ Use Task Scheduler or a service wrapper like NSSM (Non-Sucking Service Manager).
 
 ```
 SocialMediaPost/
-├── main.py                 # Entry point
-├── scheduler.py            # 24/7 scheduler
-├── pipeline.py             # Main orchestrator
+├── main.py                 # Main entry point (Runs Viral Pipeline)
+├── pipeline_viral.py       # Viral Single-Story orchestrator
+├── media_generator_viral.py # High-impact video generator
+├── viral_content_service.py # Hook & story logic
+├── voice_service.py        # AI voiceover (Edge-TTS)
 ├── news_service.py         # News fetching & ranking
-├── content_generator.py    # LLM content generation
-├── media_generator.py      # Video creation
-├── publishers.py           # Platform publishing
+├── publishers.py           # Social media publishing
+├── royalty_free_audio.py    # Background music manager
+├── google_drive_assets.py  # Drive integration
 ├── database.py             # Database models
 ├── config.py               # Configuration
 ├── requirements.txt        # Dependencies
-├── .env                    # Environment variables (create from .env.example)
-├── data/                   # Database & generated media
-│   ├── social_media_agent.db
-│   └── generated_media/
-├── logs/                   # Log files
-└── assets/                 # Backgrounds, fonts
+├── .env                    # Environment variables (local setup)
+├── data/                   # Database & generated media cache
+├── logs/                   # Application logs
+└── assets/                 # Backgrounds, fonts, local audio
     ├── backgrounds/
     └── fonts/
 ```

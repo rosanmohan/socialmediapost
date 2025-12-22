@@ -17,10 +17,11 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
-# Scopes required for YouTube upload
+# Scopes required for YouTube upload and Google Drive access
 SCOPES = [
     'https://www.googleapis.com/auth/youtube.upload',
-    'https://www.googleapis.com/auth/youtube'
+    'https://www.googleapis.com/auth/youtube',
+    'https://www.googleapis.com/auth/drive.readonly'
 ]
 
 def get_refresh_token():
