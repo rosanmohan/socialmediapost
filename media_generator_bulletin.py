@@ -10,7 +10,7 @@ from loguru import logger
 import config
 from moviepy import (
     VideoFileClip, ImageClip, CompositeVideoClip,
-    AudioFileClip, concatenate_videoclips, ColorClip
+    AudioFileClip, concatenate_videoclips, ColorClip, concatenate_audioclips
 )
 from moviepy.video.fx import Resize, MultiplySpeed, FadeIn
 from PIL import Image, ImageDraw, ImageFont
@@ -49,7 +49,7 @@ class BulletinMediaGenerator:
                 # Loop audio if shorter
                 loops_needed = int(self.target_duration / audio_clip.duration) + 1
                 audio_clips = [audio_clip] * loops_needed
-                audio_clip = concatenate_videoclips(audio_clips).subclipped(0, self.target_duration)
+                audio_clip = concatenate_audioclips(audio_clips).subclipped(0, self.target_duration)
                 logger.info(f"Looped audio to match {self.target_duration}s duration")
             else:
                 audio_clip = audio_clip.subclipped(0, self.target_duration)

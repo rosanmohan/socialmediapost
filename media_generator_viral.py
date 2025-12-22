@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 from loguru import logger
 from moviepy import (
     VideoFileClip, ImageClip, CompositeVideoClip,
-    AudioFileClip, concatenate_videoclips, ColorClip
+    AudioFileClip, concatenate_videoclips, ColorClip, concatenate_audioclips
 )
 from moviepy.video.fx import Resize, FadeIn
 from PIL import Image, ImageDraw, ImageFont
@@ -88,7 +88,7 @@ class ViralMediaGenerator:
                 # Loop or trim music to match final_video duration
                 if bg_music.duration < final_video.duration:
                     loops = int(final_video.duration / bg_music.duration) + 1
-                    bg_music = concatenate_videoclips([bg_music] * loops).subclipped(0, final_video.duration)
+                    bg_music = concatenate_audioclips([bg_music] * loops).subclipped(0, final_video.duration)
                 else:
                     bg_music = bg_music.subclipped(0, final_video.duration)
                 
