@@ -118,13 +118,33 @@ class ViralMediaGenerator:
             return None
 
     def _get_random_background(self, duration: float) -> VideoFileClip:
-        """Helper to get a random background video clip"""
-        bg_videos = list(config.BACKGROUNDS_DIR.glob("*.mp4"))
-        if bg_videos:
-            bg_path = random.choice(bg_videos)
-            bg_clip = VideoFileClip(str(bg_path))
+        """Helper to get a random background video clip (Drive first, then local)"""
+        bg_path = None
+        
+        # 1. Try Google Drive first
+        if config.DRIVE_BACKGROUNDS_FOLDER_ID:
+            try:
+                from google_drive_assets import GoogleDriveAssets
+                drive = GoogleDriveAssets()
+                bg_path = drive.download_random_file(
+                    config.DRIVE_BACKGROUNDS_FOLDER_ID,
+                    str(config.BACKGROUNDS_DIR),
+                    ['.mp4', '.mov']
+                )
+            except Exception as e:
+                logger.warning(f"Failed to get background from Drive: {e}")
+
+        # 2. Fallback to local files if Drive fails or is disabled
+        if not bg_path:
+            bg_videos = list(config.BACKGROUNDS_DIR.glob("*.mp4"))
+            if bg_videos:
+                bg_path = str(random.choice(bg_videos))
+        
+        if bg_path and os.path.exists(bg_path):
+            bg_clip = VideoFileClip(bg_path)
         else:
-            # Fallback to color clip if no videos found
+            # Final fallback: dark color
+            logger.warning("No background videos found, using color fallback")
             bg_clip = ColorClip(size=(self.width, self.height), color=(20, 20, 20), duration=duration)
             
         # Resize to fit portrait

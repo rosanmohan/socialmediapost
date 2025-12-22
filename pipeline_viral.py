@@ -14,6 +14,7 @@ from news_service import NewsService
 from viral_content_service import ViralContentService
 from media_generator_viral import ViralMediaGenerator
 from voice_service import VoiceService
+from royalty_free_audio import RoyaltyFreeAudio
 from publishers import PublisherManager
 import config
 
@@ -24,6 +25,7 @@ class ViralPipeline:
         self.voice_service = VoiceService()
         self.publisher = PublisherManager()
         self.media_gen = ViralMediaGenerator() 
+        self.audio_service = RoyaltyFreeAudio()
 
     def platform_caption_mapper(self, platform: str, hook: str, description: str, category: str) -> Dict:
         """Customizes caption and metadata for each platform"""
@@ -102,11 +104,9 @@ class ViralPipeline:
             accent_color = self.viral_service.get_color_code(category)
 
             # 4. Generate Video
-            # We'll also try to get a background music file
-            bg_music_dir = os.path.join(config.ASSETS_DIR, "audio")
-            bg_music_files = list(Path(bg_music_dir).glob("*.mp3"))
-            bg_music_path = str(random.choice(bg_music_files)) if bg_music_files else None
-
+            # Try to get background music (Drive first, then local)
+            bg_music_path = self.audio_service.get_background_music(duration=20.0) # Will be trimmed/looped later anyway
+            
             video_path = self.media_gen.generate_viral_video(
                 all_parts, 
                 voiceover_paths, 
