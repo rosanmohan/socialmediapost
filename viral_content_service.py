@@ -39,46 +39,50 @@ class ViralContentService:
             logger.warning("⚠️ ViralContentService: No LLM API key found! Using fallbacks.")
 
     def generate_viral_hook(self, headline: str) -> str:
-        """Generates a scroll-stopping hook strictly from the user's preferred list"""
-        standard_hooks = [
-            "This just happened...",
-            "Nobody is talking about this news",
-            "This could affect you next week",
-            "Big update in 30 seconds"
-        ]
-        
+        """Generates a creative, scroll-stopping viral hook using the LLM"""
         if not self.client:
-            return standard_hooks[0]
-
+            return "This just happened..."  # Fallback only if LLM fails
+            
         try:
             prompt = f"""
             News Headline: {headline}
             
-            Choose the MOST appropriate viral hook from this list for this news:
-            1. This just happened...
-            2. Nobody is talking about this news
-            3. This could affect you next week
-            4. Big update in 30 seconds
+            Write a 3-6 word "Viral Hook" for this news. 
+            The goal is to make a user STOP scrolling on TikTok/Reels immediately.
             
-            Return ONLY the exact text of the chosen hook.
+            Rules:
+            - MAX 6 words.
+            - Must be punchy, urgent, or mysterious.
+            - Do NOT clickbait falsely, but be dramatic.
+            - First letter MUST be capitalized. No ending punctuation unless it's a question mark.
+            
+            Examples of good hooks:
+            - You won't believe this
+            - This changes everything
+            - Is this the end?
+            - Finally, it happened
+            - Avoid this mistake
+            
+            Return ONLY the hook text.
             """
             
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=20
+                max_tokens=20,
+                temperature=0.8  # Higher temperature for more creativity
             )
             hook = response.choices[0].message.content.strip().replace('"', '').replace('“', '').replace('”', '')
             
-            # Validation: Ensure it's one of ours
-            for h in standard_hooks:
-                if h.lower() in hook.lower():
-                    return h
+            # Basic validation
+            if len(hook.split()) > 10:  # If it generated a sentence, truncate it or fallback
+                return "Breaking News Update"
             
-            return standard_hooks[0] # Fallback
+            return hook
+            
         except Exception as e:
-            logger.error(f"Error generating hook: {e}")
-            return standard_hooks[0]
+            logger.error(f"Error generating creative hook: {e}")
+            return "This just happened..."
 
     def summarize_to_story(self, headline: str, content: str) -> list:
         """Turns a news article into a 5-part concise narrative (~100 words total)"""
