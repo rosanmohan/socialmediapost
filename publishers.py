@@ -388,26 +388,34 @@ class PublisherManager:
         return results
 
     def validate_all(self):
-        """Validate all enabled publishers before starting expensive video generation"""
-        errors = []
+        """
+        Validate all enabled publishers.
+        If a publisher fails validation, DISABLE it for this run instead of crashing.
+        """
         if config.ENABLE_PUBLISH_YOUTUBE:
             if not self.youtube.youtube:
-                errors.append("YouTube: Missing credentials or failed initialization. Check .env")
+                logger.error("❌ YouTube validation failed. Disabling YouTube for this run.")
+                config.ENABLE_PUBLISH_YOUTUBE = False # Disable for this runtime only
         
         if config.ENABLE_PUBLISH_INSTAGRAM:
             if not self.instagram.access_token or not self.instagram.instagram_account_id:
-                errors.append("Instagram: Missing credentials in .env")
+                logger.error("❌ Instagram validation failed (missing credentials). Disabling Instagram for this run.")
+                config.ENABLE_PUBLISH_INSTAGRAM = False
             elif "your_" in (self.instagram.access_token or "") or "your_" in (self.instagram.instagram_account_id or ""):
-                errors.append("Instagram: Placeholder values detected in .env")
+                logger.error("❌ Instagram validation failed (placeholder values). Disabling Instagram for this run.")
+                config.ENABLE_PUBLISH_INSTAGRAM = False
 
         if config.ENABLE_PUBLISH_FACEBOOK:
             if not self.facebook.access_token or not self.facebook.page_id:
-                errors.append("Facebook: Missing credentials in .env")
+                logger.error("❌ Facebook validation failed (missing credentials). Disabling Facebook for this run.")
+                config.ENABLE_PUBLISH_FACEBOOK = False
             elif "your_" in (self.facebook.access_token or "") or "your_" in (self.facebook.page_id or ""):
-                errors.append("Facebook: Placeholder values detected in .env")
+                logger.error("❌ Facebook validation failed (placeholder values). Disabling Facebook for this run.")
+                config.ENABLE_PUBLISH_FACEBOOK = False
         
-        if errors:
-            raise Exception("Publisher Validation Failed:\n" + "\n".join(errors))
+        # Check if ANY publisher is still enabled
+        if not any([config.ENABLE_PUBLISH_YOUTUBE, config.ENABLE_PUBLISH_INSTAGRAM, config.ENABLE_PUBLISH_FACEBOOK]):
+            raise Exception("❌ ALL publishers failed validation! Cannot proceed.")
         
-        logger.info("✅ All enabled publishers validated and ready.")
+        logger.info("✅ Publisher validation complete. Continuing with active platforms.")
 
