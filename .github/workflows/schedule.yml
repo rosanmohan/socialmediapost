@@ -2,9 +2,8 @@ name: Run Social Media Agent
 
 on:
   schedule:
-    # 7:00, 11:00, 15:00, 19:00, 23:00 IST (UTC+5:30)
-    # UTC times: 1:30, 5:30, 9:30, 13:30, 17:30
-    - cron: '30 1,5,9,13,17 * * *'
+    # Runs at :30 past every hour to cover all 12 niche slots + 5 bulletin slots
+    - cron: '30 * * * *'
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
@@ -35,9 +34,9 @@ jobs:
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
-        python migrate_database.py || echo "Migration skipped (table may not exist yet)"
+        python migrate_database.py || echo "Migration failed, but proceeding..."
 
-    - name: Run Bulletin Pipeline
+    - name: Execute Automated Pipeline
       env:
         # API Keys from GitHub Secrets
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -59,34 +58,59 @@ jobs:
         CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
         CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         
-        # Database (Required for persistence)
+        # Database
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-        # LLM Configuration (For Groq)
+        # LLM Configuration
         GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
         
-        # Google Drive Assets (Optional)
+        # Google Drive Assets
         DRIVE_AUDIO_FOLDER_ID: ${{ secrets.DRIVE_AUDIO_FOLDER_ID }}
         DRIVE_BACKGROUNDS_FOLDER_ID: ${{ secrets.DRIVE_BACKGROUNDS_FOLDER_ID }}
         
-        # Publishing Toggles (ENABLED)
-        ENABLE_PUBLISH_YOUTUBE: "true"
-        ENABLE_PUBLISH_INSTAGRAM: "true"
-        ENABLE_PUBLISH_FACEBOOK: "true"
+        # --- BRANCH-BASED PUBLISHING TOGGLES ---
+        # Only Publish on Main Branch. dev branch remains safe (False)
+        ENABLE_PUBLISH_YOUTUBE: ${{ (github.ref == 'refs/heads/main' && 'true') || 'false' }}
+        ENABLE_PUBLISH_INSTAGRAM: ${{ (github.ref == 'refs/heads/main' && 'true') || 'false' }}
+        ENABLE_PUBLISH_FACEBOOK: ${{ (github.ref == 'refs/heads/main' && 'true') || 'false' }}
         
         # Configuration
         TIMEZONE: "Asia/Kolkata"
         LOG_LEVEL: "INFO"
         
       run: |
-        python main.py
+        HOUR=$(date +%H)
+        echo "Current UTC Hour: $HOUR"
+        
+        # 1. Check if we should run the Bulletin (Existing System)
+        # UTC: 01, 05, 09, 13, 17 (corresponds to 06:30, 10:30, 14:30, 18:30, 22:30 IST)
+        if [[ "$HOUR" == "01" || "$HOUR" == "05" || "$HOUR" == "09" || "$HOUR" == "13" || "$HOUR" == "17" ]]; then
+          echo "🚀 Running Bulletin Pipeline (main.py)..."
+          python main.py
+        fi
+        
+        # 2. Check if we should run the Viral Niche Pipeline
+        # Mapping UTC hours to Categories
+        CATEGORY=""
+        case "$HOUR" in
+          "02"|"07"|"12") CATEGORY="movies" ;;
+          "03"|"08"|"14") CATEGORY="general" ;;
+          "04"|"09"|"15") CATEGORY="india" ;;
+          "05"|"10"|"16") CATEGORY="cricket" ;;
+        esac
+        
+        if [ ! -z "$CATEGORY" ]; then
+          echo "🎬 Running Viral $CATEGORY Pipeline (pipeline_viral.py)..."
+          python pipeline_viral.py --category "$CATEGORY"
+        else
+          echo "ℹ️ No Viral Niche post scheduled for this hour."
+        fi
 
     - name: Send Email Alert on Failure
       if: failure()
       uses: dawidd6/action-send-mail@v3
       with:
-        # SMTP Settings (Set these in GitHub Secrets)
         server_address: ${{ secrets.MAIL_SERVER }}
         server_port: ${{ secrets.MAIL_PORT }}
         username: ${{ secrets.MAIL_USERNAME }}
@@ -97,11 +121,7 @@ jobs:
         body: |
           The Social Media Agent encountered a failure.
           
-          View Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Branch: ${{ github.ref }}
+          Category Logic Triggered at Hour: $(date +%H)
           
-          ---
-          Status Summary:
-          ${{ hashFiles('PIPELINE_STATUS.md') != '' && 'Check the attached summary' || 'Pipeline crashed before status generation' }}
-        convert_markdown: true
-        html_body: file://PIPELINE_STATUS.md
-        ignore_cert: true
+          View Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

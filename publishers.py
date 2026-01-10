@@ -415,7 +415,7 @@ class PublisherManager:
         
         # Check if ANY publisher is still enabled
         if not any([config.ENABLE_PUBLISH_YOUTUBE, config.ENABLE_PUBLISH_INSTAGRAM, config.ENABLE_PUBLISH_FACEBOOK]):
-            raise Exception("❌ ALL publishers failed validation! Cannot proceed.")
-        
-        logger.info("✅ Publisher validation complete. Continuing with active platforms.")
+            logger.warning("⚠️ No publishers are enabled or valid. Video will be generated but NOT published.")
+        else:
+            logger.info("✅ Publisher validation complete. Continuing with active platforms.")
 

@@ -42,14 +42,17 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY", "")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+XAI_API_KEY = os.getenv("XAI_API_KEY", "") # xAI Grok API Key
 
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")  # Default to free Groq
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")  # Default to free Grok
 # Model defaults for each provider (Updated Nov 2025)
 # Best models for social media content generation:
 # - llama-3.3-70b-versatile: Latest, best quality (if available)
 # - llama-3.1-70b-versatile: High quality, reliable
 # - llama-3.1-8b-instant: Fast, good quality (default - best balance)
 LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")  # Default: Fast and reliable
+GROK_VIDEO_MODEL = os.getenv("GROK_VIDEO_MODEL", "grok-imagine")  # Model for video generation
+GROK_IMAGE_MODEL = os.getenv("GROK_IMAGE_MODEL", "grok-2-image-1212")  # Confirmed working image model
 
 # Meta API Configuration
 FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID", "")
@@ -60,9 +63,9 @@ FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID", "")
 
 # Publishing Toggles
 # Set to 'false' to disable publishing to specific platforms (useful for testing)
-ENABLE_PUBLISH_INSTAGRAM = os.getenv("ENABLE_PUBLISH_INSTAGRAM", "true").lower() == "true"
-ENABLE_PUBLISH_FACEBOOK = os.getenv("ENABLE_PUBLISH_FACEBOOK", "true").lower() == "true"
-ENABLE_PUBLISH_YOUTUBE = os.getenv("ENABLE_PUBLISH_YOUTUBE", "true").lower() == "true"
+ENABLE_PUBLISH_INSTAGRAM = os.getenv("ENABLE_PUBLISH_INSTAGRAM", "false").lower() == "true"
+ENABLE_PUBLISH_FACEBOOK = os.getenv("ENABLE_PUBLISH_FACEBOOK", "false").lower() == "true"
+ENABLE_PUBLISH_YOUTUBE = os.getenv("ENABLE_PUBLISH_YOUTUBE", "false").lower() == "true"
 
 # YouTube API Configuration
 YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID", "")
@@ -71,6 +74,10 @@ YOUTUBE_REFRESH_TOKEN = os.getenv("YOUTUBE_REFRESH_TOKEN", "")
 
 # Scheduling Configuration
 POST_TIMES = os.getenv("POST_TIMES", "09:00,14:00,20:00").split(",")
+INDIA_POST_TIMES = os.getenv("INDIA_POST_TIMES", "10:00,15:00,21:00").split(",")
+CRICKET_POST_TIMES = os.getenv("CRICKET_POST_TIMES", "11:00,16:00,22:00").split(",")
+MOVIES_POST_TIMES = os.getenv("MOVIES_POST_TIMES", "08:00,13:00,19:00").split(",")
+CATEGORIES = ["general", "india", "cricket", "movies"]
 TIMEZONE = os.getenv("TIMEZONE", "Asia/Kolkata")
 
 # Media Generation Configuration

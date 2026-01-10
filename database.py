@@ -21,6 +21,7 @@ class NewsItem(Base):
     published_at = Column(DateTime, nullable=False)
     fetched_at = Column(DateTime, default=datetime.utcnow)
     score = Column(Float, default=0.0)
+    category = Column(String(50), default="general")
     used_in_post = Column(Boolean, default=False)
     used_at = Column(DateTime, nullable=True)
     

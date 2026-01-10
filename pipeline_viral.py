@@ -48,8 +48,8 @@ class ViralPipeline:
                 "hashtags": ["news", category_tag]
             }
 
-    def run(self):
-        logger.info("🎬 Starting Viral Single-Story Pipeline...")
+    def run(self, category_filter: Optional[str] = None):
+        logger.info(f"🎬 Starting Viral Single-Story Pipeline {'for ' + category_filter if category_filter else ''}...")
         
         db = SessionLocal()
         try:
@@ -63,14 +63,18 @@ class ViralPipeline:
             # This prevents wasting 4 minutes generating a video if publishing will fail
             self.publisher.validate_all()
             
-            # Get the #1 unused story (Using actual column names: used_in_post and score)
-            story = db.query(NewsItem).filter(NewsItem.used_in_post == False).order_by(NewsItem.score.desc()).first()
+            # Get the #1 unused story (filtered by category if provided)
+            story = self.news_service.get_unused_news(limit=1, category=category_filter)
             
             if not story:
-                logger.error("No unused news stories found!")
+                logger.error(f"No unused news stories found { 'for ' + category_filter if category_filter else ''}!")
                 return
             
-            logger.info(f"✨ Selected Viral Story: {story.title}")
+            story = story[0] # Get first item from list
+            logger.info(f"✨ Selected Viral Story: {story.title} (Category: {story.category})")
+            
+            # Use story's actual category if no filter was provided
+            active_category = category_filter if category_filter else story.category
             
             # 1. Generate Viral Hook & Progressive Story
             hook = self.viral_service.generate_viral_hook(story.title)
@@ -99,9 +103,8 @@ class ViralPipeline:
                 logger.error("Failed to generate all voiceovers!")
                 return
 
-            # 3. Get Color Code based on category (Fallback to Politics if not present)
-            category = "News" # Default since NewsItem doesn't have category field
-            accent_color = self.viral_service.get_color_code(category)
+            # 3. Get Color Code based on active category
+            accent_color = self.viral_service.get_color_code(active_category)
 
             # 4. Generate Video
             # Try to get background music (Drive first, then local)
@@ -124,7 +127,7 @@ class ViralPipeline:
             
             platforms = ["youtube", "instagram", "facebook"]
             for platform in platforms:
-                platform_data = self.platform_caption_mapper(platform, hook, story.description, category)
+                platform_data = self.platform_caption_mapper(platform, hook, story.description, active_category)
                 
                 if platform == "youtube" and config.ENABLE_PUBLISH_YOUTUBE:
                     logger.info("Publishing to YouTube...")
@@ -144,47 +147,22 @@ class ViralPipeline:
                     success_any = True
 
             # 6. Save Post & Link to NewsItem
-            try:
-                # Refresh session if it stale after long video generation
-                db.add(story)
-                story.used_in_post = True
-                story.used_at = datetime.utcnow()
-                
-                new_post = Post(
-                    news_id=story.id,
-                    script=" | ".join(all_parts),
-                    video_path=video_path,
-                    caption=f"{hook}\n\n{story.description[:200]}",
-                    hashtags="", 
-                    created_at=datetime.utcnow()
-                )
-                db.add(new_post)
-                db.commit()
-                logger.info("✅ Viral Pipeline results saved to database.")
-            except Exception as dbe:
-                logger.warning(f"⚠️ Initial commit failed, retrying with new session: {dbe}")
-                db.rollback()
-                # Final attempt with fresh session
-                fresh_db = SessionLocal()
-                try:
-                    story_id = story.id
-                    fresh_story = fresh_db.query(NewsItem).get(story_id)
-                    fresh_story.used_in_post = True
-                    fresh_story.used_at = datetime.utcnow()
-                    
-                    fresh_post = Post(
-                        news_id=story_id,
-                        script=" | ".join(all_parts),
-                        video_path=video_path,
-                        caption=f"{hook}\n\n{story.description[:200]}",
-                        hashtags="", 
-                        created_at=datetime.utcnow()
-                    )
-                    fresh_db.add(fresh_post)
-                    fresh_db.commit()
-                    logger.info("✅ Results saved on retry session.")
-                finally:
-                    fresh_db.close()
+            # Refresh session if it stale after long video generation
+            db.add(story)
+            story.used_in_post = True
+            story.used_at = datetime.utcnow()
+            
+            new_post = Post(
+                news_id=story.id,
+                script=" | ".join(all_parts),
+                video_path=video_path,
+                caption=f"{hook}\n\n{story.description[:200]}",
+                hashtags="", 
+                created_at=datetime.utcnow()
+            )
+            db.add(new_post)
+            db.commit()
+            logger.info("✅ Viral Pipeline results saved to database.")
             
             logger.info("✅ Viral Pipeline completed!")
             return results
@@ -196,5 +174,10 @@ class ViralPipeline:
             db.close()
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Run the Viral Social Media Pipeline")
+    parser.add_argument("--category", type=str, help="Filter by news category (e.g. india, cricket, movies)")
+    args = parser.parse_args()
+    
     pipeline = ViralPipeline()
-    pipeline.run()
+    pipeline.run(category_filter=args.category)

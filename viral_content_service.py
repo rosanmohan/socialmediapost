@@ -176,6 +176,9 @@ class ViralContentService:
             "economy": "#0000FF",    # Blue
             "tech": "#00FF00",       # Green
             "crime": "#8B0000",      # DarkRed
-            "politics": "#4169E1"    # RoyalBlue
+            "politics": "#4169E1",   # RoyalBlue
+            "india": "#FF9933",      # saffron
+            "cricket": "#1A5276",    # Deep Blue
+            "movies": "#E91E63"      # Vivid Pink/Movie Style
         }
         return color_map.get(category, "#FFD700") # Default Gold

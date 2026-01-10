@@ -1,4 +1,4 @@
-"""
+﻿"""
 Get royalty-free music for videos
 Uses multiple sources to ensure copyright-safe audio is always available
 """
@@ -73,7 +73,7 @@ class RoyaltyFreeAudio:
         """Generate varied background music programmatically - different each time"""
         try:
             import numpy as np
-            from moviepy import AudioArrayClip
+            from moviepy.audio.AudioClip import AudioArrayClip
             
             # Expanded music styles for more variety
             styles = [
@@ -191,20 +191,20 @@ class RoyaltyFreeAudio:
             logger.info(f"Selected random audio: {selected_audio.name} (from {len(audio_files)} available files)")
             
             # Load and adjust duration if needed
-            from moviepy import AudioFileClip
+            from moviepy.editor import AudioFileClip
             
             audio_clip = AudioFileClip(str(selected_audio))
             
             # If audio is shorter than needed, loop it
             if audio_clip.duration < duration:
                 loops_needed = int(duration / audio_clip.duration) + 1
-                from moviepy import concatenate_audioclips
+                from moviepy.editor import concatenate_audioclips
                 audio_clips = [audio_clip] * loops_needed
-                audio_clip = concatenate_audioclips(audio_clips).subclipped(0, duration)
+                audio_clip = concatenate_audioclips(audio_clips).subclip(0, duration)
                 logger.info(f"Looped audio to match {duration}s duration")
             else:
                 # Trim to exact duration
-                audio_clip = audio_clip.subclipped(0, duration)
+                audio_clip = audio_clip.subclip(0, duration)
                 logger.info(f"Trimmed audio to {duration}s")
             
             # Save to cache with unique name to avoid conflicts
@@ -274,7 +274,7 @@ class RoyaltyFreeAudio:
         """Generate a simple background tone with variety (always works - guaranteed audio)"""
         try:
             import numpy as np
-            from moviepy import AudioArrayClip
+            from moviepy.audio.AudioClip import AudioArrayClip
             
             # Different chord progressions for variety
             chord_progressions = [

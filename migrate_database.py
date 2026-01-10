@@ -12,17 +12,28 @@ def migrate_caption_field():
     
     try:
         with engine.connect() as conn:
-            # Alter the caption column to support longer text
-            logger.info("Migrating caption field from VARCHAR(500) to VARCHAR(2000)...")
-            conn.execute(text("ALTER TABLE posts ALTER COLUMN caption TYPE VARCHAR(2000);"))
+            # 1. Alter the caption column (Postgres specific syntax)
+            logger.info("Updating caption field size...")
+            if "postgresql" in config.DATABASE_URL:
+                conn.execute(text("ALTER TABLE posts ALTER COLUMN caption TYPE VARCHAR(2000);"))
+            else:
+                logger.info("SQLite/Other DB detected, skipping Postgres-specific Type Alter.")
+            
+            # 2. Add category column to news_items if missing
+            logger.info("Checking for 'category' column in news_items...")
+            try:
+                # This works for both Postgres and SQLite
+                conn.execute(text("ALTER TABLE news_items ADD COLUMN category VARCHAR(50) DEFAULT 'general';"))
+                conn.commit()
+                logger.info("✅ Added 'category' column.")
+            except Exception as e:
+                if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
+                    logger.info("ℹ️ 'category' column already exists.")
+                else:
+                    logger.warning(f"⚠️ Could not add column (it might already exist): {e}")
+            
             conn.commit()
             logger.info("✅ Migration completed successfully!")
-            
-    except Exception as e:
-        logger.error(f"Migration failed: {e}")
-        logger.info("If the error says 'column does not exist', the table might not be created yet.")
-        logger.info("In that case, just run the main application and it will create tables with the correct schema.")
-        raise
 
 if __name__ == "__main__":
     migrate_caption_field()

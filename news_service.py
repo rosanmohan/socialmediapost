@@ -142,31 +142,70 @@ class NewsService:
         return datetime.now(timezone.utc)
     
     def fetch_all_news(self) -> List[Dict]:
-        """Fetch news from all configured sources"""
+        """Fetch news for all categories and tag them with strict verification"""
         all_articles = []
         
-        # Fetch from APIs - both global and India-specific
-        all_articles.extend(self.fetch_from_newsapi(query="trending", max_results=15))
-        all_articles.extend(self.fetch_from_newsapi(query="India", max_results=10))
-        all_articles.extend(self.fetch_from_gnews(query="trending", max_results=15))
-        all_articles.extend(self.fetch_from_gnews(query="India", max_results=10))
+        category_queries = {
+            "general": ["world news", "breaking news"],
+            "india": ["India national news", "Indian government"],
+            "cricket": ["IPL news", "Cricket match results", "Indian cricket team"],
+            "movies": ["Bollywood news", "Indian cinema release", "Box office India"]
+        }
+
+        # Category keyword verification (Strict check)
+        category_keywords = {
+            "india": ["india", "indian", "modi", "delhi", "mumbai", "national", "bjp", "congress"],
+            "cricket": ["cricket", "ipl", "match", "wicket", "stadium", "bcci", "batsman", "bowler", "score"],
+            "movies": ["movie", "film", "bollywood", "actor", "actress", "cinema", "director", "release", "box office", "star"]
+        }
         
-        # Fetch from RSS feeds (popular news sources - International + Indian)
-        rss_urls = [
-            # International
-            "https://feeds.bbci.co.uk/news/rss.xml",
-            "https://rss.cnn.com/rss/edition.rss",
-            "https://feeds.reuters.com/reuters/topNews",
-            "https://www.theguardian.com/world/rss",
+        for category, queries in category_queries.items():
+            logger.info(f"Fetching news for category: {category}...")
+            cat_articles = []
+            for query in queries:
+                cat_articles.extend(self.fetch_from_newsapi(query=query, max_results=15))
+                # Add delay to avoid 429 from GNews
+                time.sleep(1)
+                cat_articles.extend(self.fetch_from_gnews(query=query, max_results=10))
             
-            # Indian News Sources
-            "https://www.thehindu.com/news/national/feeder/default.rss",
-            "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
-            "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml",
-            "https://www.ndtv.com/india/rss",
-            "https://indianexpress.com/section/india/feed/",
-        ]
-        all_articles.extend(self.fetch_from_rss(rss_urls))
+            # VERIFY and Tag
+            for art in cat_articles:
+                title_lower = art["title"].lower()
+                desc_lower = art.get("description", "").lower() if art.get("description") else ""
+                
+                # If niche category, verify it belongs there
+                if category in category_keywords:
+                    if not any(kw in title_lower or kw in desc_lower for kw in category_keywords[category]):
+                        continue # Skip miscategorized news
+                
+                art["category"] = category
+                all_articles.extend([art])
+        
+        # Add Niche-Specific RSS feeds (High Quality)
+        logger.info("Fetching Niche RSS feeds...")
+        niche_rss = {
+            "general": [
+                "https://feeds.bbci.co.uk/news/rss.xml",
+                "https://rss.cnn.com/rss/edition.rss"
+            ],
+            "india": [
+                "https://www.thehindu.com/news/national/feeder/default.rss",
+                "https://www.ndtv.com/india/rss",
+                "https://indianexpress.com/section/india/feed/"
+            ],
+            "cricket": [
+                "https://www.espncricinfo.com/rss/content/story/feeds/0.xml"
+            ],
+            "movies": [
+                "https://www.pinkvilla.com/feed/news/rss.xml"
+            ]
+        }
+        
+        for cat, urls in niche_rss.items():
+            cat_rss = self.fetch_from_rss(urls)
+            for art in cat_rss:
+                art["category"] = cat
+                all_articles.append(art)
         
         # Remove duplicates based on URL
         seen_urls = set()
@@ -177,7 +216,7 @@ class NewsService:
                 seen_urls.add(url)
                 unique_articles.append(article)
         
-        logger.info(f"Total unique articles fetched: {len(unique_articles)}")
+        logger.info(f"Total unique verified articles: {len(unique_articles)}")
         return unique_articles
     
     def score_article(self, article: Dict, all_articles: List[Dict]) -> float:
@@ -255,7 +294,7 @@ class NewsService:
         return top_articles
     
     def save_to_database(self, articles: List[Dict]) -> List[Dict]:
-        """Save articles to database and return saved item info (with IDs)"""
+        """Save articles to database with category support"""
         db = SessionLocal()
         saved_items_info = []
         
@@ -277,6 +316,7 @@ class NewsService:
                     description=article.get("description", ""),
                     url=article["url"],
                     source=article.get("source", "Unknown"),
+                    category=article.get("category", "general"),
                     published_at=article.get("published_at", datetime.now(timezone.utc)),
                     score=article.get("score", 0.0)
                 )
@@ -301,12 +341,15 @@ class NewsService:
         
         return saved_items_info
     
-    def get_unused_news(self, limit: int = 1) -> List[NewsItem]:
-        """Get unused news items from database"""
+    def get_unused_news(self, limit: int = 1, category: Optional[str] = None) -> List[NewsItem]:
+        """Get unused news items from database, optionally filtered by category"""
         db = SessionLocal()
         try:
-            items = db.query(NewsItem).filter_by(used_in_post=False).order_by(NewsItem.score.desc()).limit(limit).all()
+            query = db.query(NewsItem).filter_by(used_in_post=False)
+            if category:
+                query = query.filter_by(category=category)
+            
+            items = query.order_by(NewsItem.score.desc()).limit(limit).all()
             return items
         finally:
             db.close()
-
