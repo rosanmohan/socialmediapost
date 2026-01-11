@@ -68,10 +68,10 @@ def main():
         else:
             logger.info("🎉 All platforms processed successfully!")
     else:
-        logger.error("❌ Viral pipeline failed fundamentally (no result returned)")
+        logger.warning("⏭️ No viral story generated (either no news found or all previously used).")
         with open("PIPELINE_STATUS.md", "w") as f:
-            f.write("# ❌ Pipeline Fatal Error\nThe pipeline crashed before completing publishing.")
-        sys.exit(1)
+            f.write("# ⏭️ Pipeline Skipped\nNo new news stories were found to process at this time.")
+        sys.exit(0) # Exit with success so GitHub Action doesn't show red error for "no news"
 
 if __name__ == "__main__":
     main()

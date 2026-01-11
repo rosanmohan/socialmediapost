@@ -53,24 +53,24 @@ class ViralPipeline:
         
         db = SessionLocal()
         try:
-            # Refresh news first
-            self.news_service.fetch_all_news()
-            # We also need to get the ranked items and save them to the DB so we have a score to sort by
-            top_articles = self.news_service.get_top_news()
-            self.news_service.save_to_database(top_articles)
+            # 1. Refresh news for the specific category we need (Efficiency fix)
+            self.news_service.fetch_all_news(category_filter=category_filter)
             
-            # --- NEW: VALIDATE CONNECTIONS FIRST ---
-            # This prevents wasting 4 minutes generating a video if publishing will fail
+            # 2. Rank and Save to DB (Ensure session is passed to keep objects 'attached')
+            top_articles = self.news_service.get_top_news(category_filter=category_filter)
+            self.news_service.save_to_database(top_articles, db=db)
+            
+            # 3. Validate Connections
             self.publisher.validate_all()
             
-            # Get the #1 unused story (filtered by category if provided)
-            story = self.news_service.get_unused_news(limit=1, category=category_filter)
+            # 4. Get the #1 unused story (Filtered by category, using shared session)
+            story_list = self.news_service.get_unused_news(limit=1, category=category_filter, db=db)
             
-            if not story:
-                logger.error(f"No unused news stories found { 'for ' + category_filter if category_filter else ''}!")
-                return
+            if not story_list:
+                logger.warning(f"No unused news stories found { 'for ' + category_filter if category_filter else ''}!")
+                return None # Return None to main.py so it can exit gracefully with success code
             
-            story = story[0] # Get first item from list
+            story = story_list[0] 
             logger.info(f"✨ Selected Viral Story: {story.title} (Category: {story.category})")
             
             # Use story's actual category if no filter was provided

@@ -141,8 +141,8 @@ class NewsService:
         
         return datetime.now(timezone.utc)
     
-    def fetch_all_news(self) -> List[Dict]:
-        """Fetch news for all categories and tag them with strict verification"""
+    def fetch_all_news(self, category_filter: Optional[str] = None) -> List[Dict]:
+        """Fetch news for categories and tag them with strict verification"""
         all_articles = []
         
         category_queries = {
@@ -160,11 +160,14 @@ class NewsService:
         }
         
         for category, queries in category_queries.items():
+            # Optimization: If we have a filter, only fetch THAT category
+            if category_filter and category != category_filter:
+                continue
+                
             logger.info(f"Fetching news for category: {category}...")
             cat_articles = []
             for query in queries:
                 cat_articles.extend(self.fetch_from_newsapi(query=query, max_results=15))
-                # Add delay to avoid 429 from GNews
                 time.sleep(1)
                 cat_articles.extend(self.fetch_from_gnews(query=query, max_results=10))
             
@@ -173,35 +176,25 @@ class NewsService:
                 title_lower = art["title"].lower()
                 desc_lower = art.get("description", "").lower() if art.get("description") else ""
                 
-                # If niche category, verify it belongs there
                 if category in category_keywords:
                     if not any(kw in title_lower or kw in desc_lower for kw in category_keywords[category]):
-                        continue # Skip miscategorized news
+                        continue 
                 
                 art["category"] = category
-                all_articles.extend([art])
+                all_articles.append(art)
         
         # Add Niche-Specific RSS feeds (High Quality)
         logger.info("Fetching Niche RSS feeds...")
         niche_rss = {
-            "general": [
-                "https://feeds.bbci.co.uk/news/rss.xml",
-                "https://rss.cnn.com/rss/edition.rss"
-            ],
-            "india": [
-                "https://www.thehindu.com/news/national/feeder/default.rss",
-                "https://www.ndtv.com/india/rss",
-                "https://indianexpress.com/section/india/feed/"
-            ],
-            "cricket": [
-                "https://www.espncricinfo.com/rss/content/story/feeds/0.xml"
-            ],
-            "movies": [
-                "https://www.pinkvilla.com/feed/news/rss.xml"
-            ]
+            "general": ["https://feeds.bbci.co.uk/news/rss.xml", "https://rss.cnn.com/rss/edition.rss"],
+            "india": ["https://www.thehindu.com/news/national/feeder/default.rss", "https://www.ndtv.com/india/rss"],
+            "cricket": ["https://www.espncricinfo.com/rss/content/story/feeds/0.xml"],
+            "movies": ["https://www.pinkvilla.com/feed/news/rss.xml"]
         }
         
         for cat, urls in niche_rss.items():
+            if category_filter and cat != category_filter:
+                continue
             cat_rss = self.fetch_from_rss(urls)
             for art in cat_rss:
                 art["category"] = cat
@@ -278,10 +271,10 @@ class NewsService:
         # Return top N
         return filtered[:config.TOP_N_NEWS_TO_CONSIDER]
     
-    def get_top_news(self) -> List[Dict]:
+    def get_top_news(self, category_filter: Optional[str] = None) -> List[Dict]:
         """Main method: fetch and return top news articles"""
-        logger.info("Fetching news from all sources...")
-        all_articles = self.fetch_all_news()
+        logger.info(f"Fetching news from all sources{' for category ' + category_filter if category_filter else ''}...")
+        all_articles = self.fetch_all_news(category_filter=category_filter)
         
         if not all_articles:
             logger.warning("No articles fetched")
@@ -293,15 +286,15 @@ class NewsService:
         logger.info(f"Selected {len(top_articles)} top articles")
         return top_articles
     
-    def save_to_database(self, articles: List[Dict]) -> List[Dict]:
+    def save_to_database(self, articles: List[Dict], db: Optional[SessionLocal] = None) -> List[Dict]:
         """Save articles to database with category support"""
-        db = SessionLocal()
+        local_db = db if db else SessionLocal()
         saved_items_info = []
         
         try:
             for article in articles:
                 # Check if already exists
-                existing = db.query(NewsItem).filter_by(url=article["url"]).first()
+                existing = local_db.query(NewsItem).filter_by(url=article["url"]).first()
                 if existing:
                     # Return existing item info
                     saved_items_info.append({
@@ -320,8 +313,8 @@ class NewsService:
                     published_at=article.get("published_at", datetime.now(timezone.utc)),
                     score=article.get("score", 0.0)
                 )
-                db.add(news_item)
-                db.flush()  # Flush to get the ID without committing
+                local_db.add(news_item)
+                local_db.flush()  # Flush to get the ID without committing
                 
                 # Extract ID before session closes
                 saved_items_info.append({
@@ -330,26 +323,30 @@ class NewsService:
                     "title": news_item.title
                 })
             
-            db.commit()
+            if not db:
+                local_db.commit()
             logger.info(f"Saved {len(saved_items_info)} news items to database")
             
         except Exception as e:
-            db.rollback()
+            if not db:
+                local_db.rollback()
             logger.error(f"Error saving to database: {e}")
         finally:
-            db.close()
+            if not db:
+                local_db.close()
         
         return saved_items_info
     
-    def get_unused_news(self, limit: int = 1, category: Optional[str] = None) -> List[NewsItem]:
+    def get_unused_news(self, limit: int = 1, category: Optional[str] = None, db: Optional[SessionLocal] = None) -> List[NewsItem]:
         """Get unused news items from database, optionally filtered by category"""
-        db = SessionLocal()
+        local_db = db if db else SessionLocal()
         try:
-            query = db.query(NewsItem).filter_by(used_in_post=False)
+            query = local_db.query(NewsItem).filter_by(used_in_post=False)
             if category:
                 query = query.filter_by(category=category)
             
             items = query.order_by(NewsItem.score.desc()).limit(limit).all()
             return items
         finally:
-            db.close()
+            if not db:
+                local_db.close()
