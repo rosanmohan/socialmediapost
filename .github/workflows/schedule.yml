@@ -143,16 +143,8 @@ jobs:
       run: |
         HOUR=$(date +%H)
         echo "Current UTC Hour: $HOUR"
-        echo "Publishing Status: YouTube=$ENABLE_PUBLISH_YOUTUBE, Instagram=$ENABLE_PUBLISH_INSTAGRAM, Facebook=$ENABLE_PUBLISH_FACEBOOK"
         
-        # 1. Check if we should run the Bulletin (Existing System)
-        # UTC: 01, 05, 09, 13, 17 (corresponds to 06:30, 10:30, 14:30, 18:30, 22:30 IST)
-        if [[ "$HOUR" == "01" || "$HOUR" == "05" || "$HOUR" == "09" || "$HOUR" == "13" || "$HOUR" == "17" ]]; then
-          echo "🚀 Running Bulletin Pipeline (main.py)..."
-          python main.py
-        fi
-        
-        # 2. Check if we should run the Viral Niche Pipeline
+        # 1. Check if we should run the Viral Niche Pipeline
         # Mapping UTC hours to Categories
         CATEGORY=""
         case "$HOUR" in
@@ -166,7 +158,8 @@ jobs:
           echo "🎬 Running Viral $CATEGORY Pipeline (pipeline_viral.py)..."
           python pipeline_viral.py --category "$CATEGORY"
         else
-          echo "ℹ️ No Viral Niche post scheduled for this hour."
+          echo "🚀 No Viral Niche slot active. Running Best Story mode (main.py)..."
+          python main.py
         fi
 
     - name: Upload Generated Videos and Logs

@@ -107,7 +107,7 @@ VIDEO_DURATION_SECONDS = 45  # Target duration
 MAX_NEWS_ITEMS_TO_FETCH = 20
 TOP_N_NEWS_TO_CONSIDER = 3
 MIN_NEWS_AGE_HOURS = 0
-MAX_NEWS_AGE_HOURS = 12
+MAX_NEWS_AGE_HOURS = 24
 
 # Google Drive Assets (Optional - for cloud storage of large files)
 # Extract ID from URL: drive.google.com/drive/folders/YOUR_ID_HERE
