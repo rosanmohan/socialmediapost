@@ -1,45 +1,51 @@
 # Core dependencies
-requests==2.31.0
-httpx==0.25.2
-python-dotenv==1.0.0
-schedule==1.2.0
+requests>=2.31.0
+httpx>=0.25.0
+python-dotenv>=1.0.0
+schedule>=1.2.0
 
 # Database
-sqlalchemy==2.0.23
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0  # For PostgreSQL support in GitHub Actions
 
 # LLM & AI
-openai==1.6.1
-anthropic==0.18.1
+openai>=1.6.0
+anthropic>=0.18.0
+groq>=0.4.0  # Added Groq support
 
 # Media generation
-moviepy==1.0.3  # Pinned to v1 for stability with current codebase
+moviepy>=1.0.3
 Pillow>=10.0.0
-opencv-python>=4.8.0
-numpy>=1.24.0
+opencv-python-headless>=4.8.0  # Headless version for CI/CD
+numpy>=1.24.0,<2.0.0  # Pin to v1.x for compatibility
 
 # Text-to-Speech
-gTTS==2.5.1
-pyttsx3==2.90
-edge-tts==6.1.12
+gTTS>=2.5.0
+pyttsx3>=2.90
+edge-tts>=6.1.0
 
 # News APIs
-feedparser==6.0.11
-beautifulsoup4==4.12.3
+feedparser>=6.0.0
+beautifulsoup4>=4.12.0
 
 # Social Media APIs
-google-api-python-client==2.110.0
-google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.0
+google-api-python-client>=2.110.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
 
 # Utilities
-python-dateutil==2.8.2
-pytz==2024.1
-fuzzywuzzy==0.18.0
-python-Levenshtein==0.23.0
+python-dateutil>=2.8.0
+pytz>=2024.1
+fuzzywuzzy>=0.18.0
+python-Levenshtein>=0.20.0
 
 # Logging & Monitoring
-loguru==0.7.2
+loguru>=0.7.0
 
 # Media processing/hosting
-cloudinary==1.44.1
+cloudinary>=1.40.0
 
+# Additional dependencies that might be needed
+certifi>=2023.0.0  # SSL certificates
+urllib3>=2.0.0
+charset-normalizer>=3.0.0
