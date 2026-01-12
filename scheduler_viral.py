@@ -4,6 +4,7 @@ Schedules posts for General, India, Cricket, and Movie news.
 """
 import schedule
 import time
+import os
 import subprocess
 import sys
 import argparse
@@ -31,10 +32,29 @@ SCHEDULE_CONFIG = {
 
 TIMEZONE = "Asia/Kolkata"
 
+def setup_logging():
+    """Configure file logging"""
+    # Ensure logs directory exists
+    os.makedirs("logs", exist_ok=True)
+    
+    logger.add(
+        "logs/scheduler_viral_{time}.log",
+        rotation="1 day",
+        retention="30 days",
+        level="INFO"
+    )
+
+def write_status_file(status_lines):
+    """Write the status file for GitHub Actions"""
+    with open("PIPELINE_STATUS.md", "w", encoding="utf-8") as f:
+        f.write("\n".join(status_lines))
+
 def run_viral_job(category: str):
     """Execute pipeline_viral.py with category argument"""
     job_time = datetime.now(pytz.timezone(TIMEZONE)).strftime("%Y-%m-%d %H:%M:%S")
     logger.info(f"🚀 Starting Viral {category.upper()} Pipeline at {job_time}")
+    
+    status_lines = [f"# 📊 Pipeline Execution Status: {category.upper()}", f"**Time:** {job_time}\n"]
     
     try:
         # Run pipeline_viral.py with --category flag
@@ -47,17 +67,26 @@ def run_viral_job(category: str):
         
         if proc.returncode == 0:
             logger.info(f"✅ {category.upper()} pipeline completed successfully")
+            status_lines.append(f"- ✅ **Status**: SUCCESS")
+            status_lines.append(f"- 📂 **Category**: {category}")
         else:
             logger.error(f"❌ {category.upper()} pipeline failed (Code {proc.returncode})")
+            status_lines.append(f"- ❌ **Status**: FAILED (Exit Code {proc.returncode})")
+            status_lines.append(f"- 📂 **Category**: {category}")
 
     except Exception as e:
         logger.error(f"Critical failure in {category} job execution: {e}")
+        status_lines.append(f"- ❌ **Critical Error**: {str(e)}")
+    
+    write_status_file(status_lines)
 
 def run_cron_check():
     """
     Check current time against the explicit schedule and run job if valid.
     Designed for GitHub Actions to run every hour.
     """
+    setup_logging()
+    
     # 1. Get current time in correct timezone
     tz = pytz.timezone(TIMEZONE)
     now = datetime.now(tz)
@@ -74,7 +103,6 @@ def run_cron_check():
             scheduled_h = int(time_str.split(":")[0])
             
             # Check if we are in the matching hour
-            # (Strict logic: exact hour match. Since cron runs at start of hour, this works)
             if current_hour == scheduled_h:
                 logger.info(f"🎯 Time verified! Matched schedule for [{category.upper()}] at {time_str}")
                 run_viral_job(category)
@@ -82,15 +110,15 @@ def run_cron_check():
                 
     if not active_job_found:
         logger.info("💤 No jobs scheduled for this hour.")
+        write_status_file([
+            "# 💤 Pipeline Skipped",
+            f"**Time:** {now.strftime('%Y-%m-%d %H:%M:%S')} IST",
+            f"No jobs scheduled for hour: {current_hour}:00"
+        ])
 
 def start_loop_scheduler():
     """Start the persistent scheduler loop (Local Machine Mode)"""
-    logger.add(
-        "logs/scheduler_viral_{time}.log",
-        rotation="1 day",
-        retention="30 days",
-        level="INFO"
-    )
+    setup_logging()
     
     logger.info("🎬 Starting Persistent Viral Content Scheduler (Loop Mode)...")
     
