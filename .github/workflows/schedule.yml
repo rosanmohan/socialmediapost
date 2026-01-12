@@ -148,13 +148,22 @@ jobs:
         LOG_LEVEL: "INFO"
         
       run: |
-        echo "🚀 Starting Viral Scheduler Check..."
-        python scheduler_viral.py --cron
+        # MANUAL TRIGGER: Run Pipeline Directly (Ignore Time)
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "🚀 Manual Trigger Detected: FORCING execution of Bulletin Pipeline..."
+          python main.py
         
-        echo "🚀 Starting Bulletin Scheduler Check..."
-        # This checks the Python file 'scheduler_bulletin.py' for times
-        # If the current hour matches X, Y, Z defined in that file, it runs.
-        python scheduler_bulletin.py --cron
+        # SCHEDULED TRIGGER: Check Time first
+        else
+          echo "⏰ Scheduled Run: Checking Timers..."
+          echo "-----------------------------------"
+          
+          echo "🚀 Checking Viral Scheduler..."
+          python scheduler_viral.py --cron
+          
+          echo "🚀 Checking Bulletin Scheduler..."
+          python scheduler_bulletin.py --cron
+        fi
 
     - name: Upload Generated Videos and Logs
       if: always()  # Run even if previous steps fail
