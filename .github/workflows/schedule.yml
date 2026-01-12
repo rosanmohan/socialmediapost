@@ -2,9 +2,8 @@ name: Run Social Media Agent
 
 on:
   schedule:
-    # IST Times: 08:00, 13:00, 18:00
-    # UTC Times: 02:30, 07:30, 12:30 (IST is UTC+5:30)
-    - cron: '30 2,7,12 * * *'
+    # Run hourly to check python scheduler for matches
+    - cron: '0 * * * *'
   workflow_dispatch:  # Allow manual trigger
     inputs:
       force_publish:
@@ -149,8 +148,13 @@ jobs:
         LOG_LEVEL: "INFO"
         
       run: |
-        echo "🚀 Starting Social Media Agent Pipeline (main.py)..."
-        python main.py
+        echo "🚀 Starting Viral Scheduler Check..."
+        python scheduler_viral.py --cron
+        
+        echo "🚀 Starting Bulletin Scheduler Check..."
+        # This checks the Python file 'scheduler_bulletin.py' for times
+        # If the current hour matches X, Y, Z defined in that file, it runs.
+        python scheduler_bulletin.py --cron
 
     - name: Upload Generated Videos and Logs
       if: always()  # Run even if previous steps fail
