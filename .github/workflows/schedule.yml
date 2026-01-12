@@ -5,6 +5,12 @@ on:
     # Runs at :30 past every hour to cover all 12 niche slots + 5 bulletin slots
     - cron: '30 * * * *'
   workflow_dispatch:  # Allow manual trigger
+    inputs:
+      force_publish:
+        description: 'Force Enable Publishing (overrides branch check)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   run-agent:
@@ -80,10 +86,10 @@ jobs:
         DRIVE_BACKGROUNDS_FOLDER_ID: ${{ secrets.DRIVE_BACKGROUNDS_FOLDER_ID }}
         
         # --- BRANCH-BASED PUBLISHING TOGGLES ---
-        # Only Publish on Main Branch. dev branch remains safe (False)
-        ENABLE_PUBLISH_YOUTUBE: ${{ (github.ref == 'refs/heads/main' && 'true') || 'false' }}
-        ENABLE_PUBLISH_INSTAGRAM: ${{ (github.ref == 'refs/heads/main' && 'true') || 'false' }}
-        ENABLE_PUBLISH_FACEBOOK: ${{ (github.ref == 'refs/heads/main' && 'true') || 'false' }}
+        # Allow Force Publish via Manual Trigger OR Main Branch
+        ENABLE_PUBLISH_YOUTUBE: ${{ ((github.ref == 'refs/heads/main' || inputs.force_publish) && 'true') || 'false' }}
+        ENABLE_PUBLISH_INSTAGRAM: ${{ ((github.ref == 'refs/heads/main' || inputs.force_publish) && 'true') || 'false' }}
+        ENABLE_PUBLISH_FACEBOOK: ${{ ((github.ref == 'refs/heads/main' || inputs.force_publish) && 'true') || 'false' }}
         
         # Configuration
         TIMEZONE: "Asia/Kolkata"
@@ -92,6 +98,7 @@ jobs:
       run: |
         echo "🔍 Configuration Debug Information:"
         echo "Branch: ${{ github.ref }}"
+        echo "Force Publish Input: ${{ inputs.force_publish }}"
         echo "ENABLE_PUBLISH_YOUTUBE: $ENABLE_PUBLISH_YOUTUBE"
         echo "ENABLE_PUBLISH_INSTAGRAM: $ENABLE_PUBLISH_INSTAGRAM"
         echo "ENABLE_PUBLISH_FACEBOOK: $ENABLE_PUBLISH_FACEBOOK"
@@ -131,10 +138,10 @@ jobs:
         DRIVE_BACKGROUNDS_FOLDER_ID: ${{ secrets.DRIVE_BACKGROUNDS_FOLDER_ID }}
         
         # --- BRANCH-BASED PUBLISHING TOGGLES ---
-        # Only Publish on Main Branch. dev branch remains safe (False)
-        ENABLE_PUBLISH_YOUTUBE: ${{ (github.ref == 'refs/heads/main' && 'true') || 'false' }}
-        ENABLE_PUBLISH_INSTAGRAM: ${{ (github.ref == 'refs/heads/main' && 'true') || 'false' }}
-        ENABLE_PUBLISH_FACEBOOK: ${{ (github.ref == 'refs/heads/main' && 'true') || 'false' }}
+        # Allow Force Publish via Manual Trigger OR Main Branch
+        ENABLE_PUBLISH_YOUTUBE: ${{ ((github.ref == 'refs/heads/main' || inputs.force_publish) && 'true') || 'false' }}
+        ENABLE_PUBLISH_INSTAGRAM: ${{ ((github.ref == 'refs/heads/main' || inputs.force_publish) && 'true') || 'false' }}
+        ENABLE_PUBLISH_FACEBOOK: ${{ ((github.ref == 'refs/heads/main' || inputs.force_publish) && 'true') || 'false' }}
         
         # Configuration
         TIMEZONE: "Asia/Kolkata"

@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Dict, List
 from pathlib import Path
 from loguru import logger
-from database import SessionLocal, NewsItem, Post
+from database import SessionLocal, NewsItem, Post, init_db
 from news_service import NewsService
 from viral_content_service import ViralContentService
 from media_generator_viral import ViralMediaGenerator
@@ -51,6 +51,9 @@ class ViralPipeline:
     def run(self, category_filter: Optional[str] = None):
         logger.info(f"🎬 Starting Viral Single-Story Pipeline {'for ' + category_filter if category_filter else ''}...")
         
+        # Ensure database tables exist (Critical for fresh CI/CD runs)
+        init_db()
+
         db = SessionLocal()
         try:
             # 1. Refresh news for the specific category we need (Efficiency fix)
