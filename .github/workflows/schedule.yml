@@ -1,9 +1,8 @@
-name: Run Social Media Agent
-
 on:
   schedule:
-    # Run hourly to check python scheduler for matches
-    - cron: '0 * * * *'
+    # IST Times: 08:00, 13:00, 18:00
+    # UTC Times: 02:30, 07:30, 12:30 (IST is UTC+5:30)
+    - cron: '30 2,7,12 * * *'
   workflow_dispatch:  # Allow manual trigger
     inputs:
       force_publish:
@@ -148,22 +147,9 @@ jobs:
         LOG_LEVEL: "INFO"
         
       run: |
-        # MANUAL TRIGGER: Run Pipeline Directly (Ignore Time)
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          echo "🚀 Manual Trigger Detected: FORCING execution of Bulletin Pipeline..."
-          python main.py
-        
-        # SCHEDULED TRIGGER: Check Time first
-        else
-          echo "⏰ Scheduled Run: Checking Timers..."
-          echo "-----------------------------------"
-          
-          echo "🚀 Checking Viral Scheduler..."
-          python scheduler_viral.py --cron
-          
-          echo "🚀 Checking Bulletin Scheduler..."
-          python scheduler_bulletin.py --cron
-        fi
+        echo "🚀 Starting Social Media Agent Pipeline..."
+        echo "Mode: Direct Execution (Manual or Scheduled)"
+        python main.py
 
     - name: Upload Generated Videos and Logs
       if: always()  # Run even if previous steps fail
