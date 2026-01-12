@@ -61,9 +61,11 @@ def run_viral_job(category: str):
         cmd = [sys.executable, "pipeline_viral.py", "--category", category]
         
         # Stream output in real-time
+        # Stream output in real-time
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
             for line in proc.stdout:
                 print(line, end='') # Print directly to console for GitHub Actions logs
+            proc.wait() # Ensure process finishes
         
         if proc.returncode == 0:
             logger.info(f"✅ {category.upper()} pipeline completed successfully")
