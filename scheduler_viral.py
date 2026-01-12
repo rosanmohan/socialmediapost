@@ -18,16 +18,16 @@ import pytz
 # The pipeline will run if the current IST time matches the hour (and minute tolerance)
 SCHEDULE_CONFIG = {
     # Bollywood/Movies (Early morning, Mid-day, Evening)
-    "movies": ["08:00", "13:00", "19:00"],
+    "movies": [],
     
     # General News (Breakfast, Post-Lunch, Prime Time)
-    "general": ["09:00", "14:00", "20:00"],
+    "general": [],
     
     # India National News (Late Morning, Evening, Late Night)
-    "india": ["10:00", "15:00", "21:00"],
+    "india": [],
     
     # Cricket (Pre-match/Mid-day, Evening, Post-Match)
-    "cricket": ["11:00", "16:00", "22:00"]
+    "cricket": []
 }
 
 TIMEZONE = "Asia/Kolkata"
