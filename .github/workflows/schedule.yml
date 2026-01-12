@@ -148,10 +148,11 @@ jobs:
         LOG_LEVEL: "INFO"
         
       run: |
-        echo "🚀 Starting Scheduler Check..."
-        # Simply call the scheduler in cron check mode.
-        # It handles time checking and running the appropriate pipeline.
+        echo "🚀 Starting Viral Scheduler Check..."
         python scheduler_viral.py --cron
+        
+        echo "🚀 Starting Bulletin Scheduler Check..."
+        python scheduler_bulletin.py --cron
 
     - name: Upload Generated Videos and Logs
       if: always()  # Run even if previous steps fail
