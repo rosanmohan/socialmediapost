@@ -171,7 +171,8 @@ jobs:
         username: ${{ secrets.EMAIL_USERNAME }}
         password: ${{ secrets.EMAIL_PASSWORD }}
         subject: "❌ Social Media Agent Pipeline Failed"
-        to: ${{ secrets.EMAIL_TO }}
+        # Hardcoding fallback to ensure 'to' exists if secret is missing
+        to: ${{ secrets.EMAIL_TO || 'rosanmohans@gmail.com' }}
         from: Social Media Agent
         body: |
           The Social Media Agent pipeline failed.
