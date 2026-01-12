@@ -49,6 +49,7 @@ class ViralPipeline:
             }
 
     def run(self, category_filter: Optional[str] = None):
+        print(f"🎬 Starting Viral Single-Story Pipeline {'for ' + category_filter if category_filter else ''}...")
         logger.info(f"🎬 Starting Viral Single-Story Pipeline {'for ' + category_filter if category_filter else ''}...")
         
         # Ensure database tables exist (Critical for fresh CI/CD runs)
@@ -57,10 +58,13 @@ class ViralPipeline:
         db = SessionLocal()
         try:
             # 1. Refresh news for the specific category we need (Efficiency fix)
+            print(f"📡 Fetching news for {category_filter or 'any'}...")
             self.news_service.fetch_all_news(category_filter=category_filter)
             
             # 2. Rank and Save to DB (Ensure session is passed to keep objects 'attached')
             top_articles = self.news_service.get_top_news(category_filter=category_filter)
+            if not top_articles:
+                print("⚠️ No top articles found after filtering.")
             self.news_service.save_to_database(top_articles, db=db)
             
             # 3. Validate Connections
@@ -69,17 +73,34 @@ class ViralPipeline:
             # 4. Get the #1 unused story (Filtered by category, using shared session)
             story_list = self.news_service.get_unused_news(limit=1, category=category_filter, db=db)
             
+            # FALLBACK: If no news for specific category, try GENERAL category
+            if not story_list and category_filter:
+                print(f"⚠️ No unused news found for {category_filter}. Trying 'general' fallback...")
+                logger.warning(f"No unused news stories found for {category_filter}! Trying fallback to 'general'...")
+                story_list = self.news_service.get_unused_news(limit=1, category="general", db=db)
+                if not story_list:
+                     # Ultra fallback: fetch general news NOW
+                     self.news_service.fetch_all_news(category_filter="general")
+                     top_articles = self.news_service.get_top_news(category_filter="general")
+                     self.news_service.save_to_database(top_articles, db=db)
+                     story_list = self.news_service.get_unused_news(limit=1, category="general", db=db)
+
             if not story_list:
-                logger.warning(f"No unused news stories found { 'for ' + category_filter if category_filter else ''}!")
-                return None # Return None to main.py so it can exit gracefully with success code
+                msg = f"❌ FATAL: No unused news stories found even after fallback!"
+                print(msg)
+                logger.error(msg)
+                # EXIT WITH ERROR CODE to fail the pipeline explicitly
+                sys.exit(1)
             
             story = story_list[0] 
+            print(f"✨ Selected Viral Story: {story.title} (Category: {story.category})")
             logger.info(f"✨ Selected Viral Story: {story.title} (Category: {story.category})")
             
             # Use story's actual category if no filter was provided
             active_category = category_filter if category_filter else story.category
             
             # 1. Generate Viral Hook & Progressive Story
+            print("🧠 Generating viral script with LLM...")
             hook = self.viral_service.generate_viral_hook(story.title)
             story_parts = self.viral_service.summarize_to_story(story.title, story.description)
             
@@ -95,6 +116,7 @@ class ViralPipeline:
             logger.info("="*50)
 
             # 2. Generate Voiceovers for each part
+            print("🎙️ Generating voiceovers...")
             voiceover_paths = []
             for i, part in enumerate(all_parts):
                 filename = f"part_{i}_{int(time.time())}.mp3"
@@ -104,12 +126,14 @@ class ViralPipeline:
             
             if len(voiceover_paths) < len(all_parts):
                 logger.error("Failed to generate all voiceovers!")
-                return
+                print("❌ Failed to generate all voiceovers!")
+                sys.exit(1)
 
             # 3. Get Color Code based on active category
             accent_color = self.viral_service.get_color_code(active_category)
 
             # 4. Generate Video
+            print("🎥 Rendering video (this takes time)...")
             # Try to get background music (Drive first, then local)
             bg_music_path = self.audio_service.get_background_music(duration=20.0) # Will be trimmed/looped later anyway
             
@@ -122,7 +146,8 @@ class ViralPipeline:
             
             if not video_path:
                 logger.error("Video generation failed!")
-                return
+                print("❌ Video generation failed!")
+                sys.exit(1)
 
             # 5. Publish with platform-specific captions
             success_any = False
@@ -165,9 +190,9 @@ class ViralPipeline:
             )
             db.add(new_post)
             db.commit()
-            logger.info("✅ Viral Pipeline results saved to database.")
+            print("✅ Viral Pipeline results saved to database.")
             
-            logger.info("✅ Viral Pipeline completed!")
+            print("✅ Viral Pipeline completed successfully!")
             return results
 
         except Exception as e:
