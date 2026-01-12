@@ -2,8 +2,9 @@ name: Run Social Media Agent
 
 on:
   schedule:
-    # Runs at :00 (top of every hour) to align with our explicit Python schedule
-    - cron: '0 * * * *'
+    # IST Times: 08:00, 13:00, 18:00
+    # UTC Times: 02:30, 07:30, 12:30 (IST is UTC+5:30)
+    - cron: '30 2,7,12 * * *'
   workflow_dispatch:  # Allow manual trigger
     inputs:
       force_publish:
@@ -68,7 +69,7 @@ jobs:
         FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
         FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
         INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
-
+        
         # Cloudinary Credentials (For stable Instagram posting)
         CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
         CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
@@ -148,11 +149,8 @@ jobs:
         LOG_LEVEL: "INFO"
         
       run: |
-        echo "🚀 Starting Viral Scheduler Check..."
-        python scheduler_viral.py --cron
-        
-        echo "🚀 Starting Bulletin Scheduler Check..."
-        python scheduler_bulletin.py --cron
+        echo "🚀 Starting Social Media Agent Pipeline (main.py)..."
+        python main.py
 
     - name: Upload Generated Videos and Logs
       if: always()  # Run even if previous steps fail
@@ -164,24 +162,22 @@ jobs:
           logs/*.log
           PIPELINE_STATUS.md
         retention-days: 7
-        if-no-files-found: warn
 
     - name: Send Email Alert on Failure
       if: failure()
-      continue-on-error: true  # Don't fail workflow if email fails
       uses: dawidd6/action-send-mail@v3
       with:
-        server_address: ${{ secrets.MAIL_SERVER }}
-        server_port: ${{ secrets.MAIL_PORT }}
-        username: ${{ secrets.MAIL_USERNAME }}
-        password: ${{ secrets.MAIL_PASSWORD }}
-        subject: "🚨 Social Media Agent Failure: ${{ github.run_id }}"
-        to: ${{ secrets.ALERT_RECIPIENT }}
-        from: "Social Media Automation Bot"
+        server_address: smtp.gmail.com
+        server_port: 465
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "❌ Social Media Agent Pipeline Failed"
+        to: ${{ secrets.EMAIL_TO }}
+        from: Social Media Agent
         body: |
-          The Social Media Agent encountered a failure.
+          The Social Media Agent pipeline failed.
           
-          Branch: ${{ github.ref }}
-          Category Logic Triggered at Hour: $(date +%H)
+          Run ID: ${{ github.run_id }}
+          Log: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           
-          View Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Please check the logs for more details.
