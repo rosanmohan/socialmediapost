@@ -6,7 +6,7 @@ import os
 import time
 import random
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 from pathlib import Path
 from loguru import logger
 from database import SessionLocal, NewsItem, Post, init_db
