@@ -14,7 +14,7 @@ anthropic>=0.18.0
 groq>=0.4.0  # Added Groq support
 
 # Media generation
-moviepy>=1.0.3
+moviepy==1.0.3
 Pillow>=10.0.0
 opencv-python-headless>=4.8.0  # Headless version for CI/CD
 numpy>=1.24.0,<2.0.0  # Pin to v1.x for compatibility
