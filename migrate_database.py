@@ -34,6 +34,9 @@ def migrate_caption_field():
             
             conn.commit()
             logger.info("✅ Migration completed successfully!")
+            
+    except Exception as e:
+        logger.error(f"❌ Migration failed: {e}")
 
 if __name__ == "__main__":
     migrate_caption_field()
